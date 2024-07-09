@@ -1,0 +1,1522 @@
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+//
+// FileName: Logix_Program.cs
+// FileType: Visual C# Source file
+// Author : Rockwell Automation
+// Created : 2024
+// Description : This script provides an example test in a CI/CD pipeline utilizing Studio 5000 Logix Designer SDK and Factory Talk Logix Echo SDK.
+//
+// ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+using Google.Protobuf;
+using LogixEcho_ClassLibrary;
+using OfficeOpenXml;
+using RockwellAutomation.LogixDesigner;
+using System.Text;
+using static RockwellAutomation.LogixDesigner.LogixProject;
+using DataType = RockwellAutomation.LogixDesigner.LogixProject.DataType;
+
+namespace UnitTesting
+{
+
+    internal class UnitTest
+    {
+
+        static async Task Main()
+        {
+            // THE ONLY PARAMETER THAT WILL NEED TO BE MODIFIED (MAYBE PASS THIS IN FROM JENKINS)
+            // string unitTestExcelWorkbook_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest\AOI_test.xlsx";
+            string unitTestExcelWorkbook_folderPath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest";
+            string[] all_files = Directory.GetFiles(unitTestExcelWorkbook_folderPath);
+            List<FileInfo> orderedFiles = all_files.Select(f => new FileInfo(f)).OrderBy(f => f.CreationTime).ToList();
+
+            string firstUnitTest_filePath = "";
+            string secondUnitTest_filePath = "";
+            string controllerName = "";
+            string acdFilePath = "";
+            string aoiTagName = "";
+            string aoiTagScope = "";
+
+
+
+            // Title Banner 
+            Console.WriteLine("\n  =========================================================================================================================  ");
+            Console.WriteLine("=============================================================================================================================");
+            Console.WriteLine("                       UNIT TESTING | " + DateTime.Now + " " + TimeZoneInfo.Local);
+            Console.WriteLine("=============================================================================================================================");
+            Console.WriteLine("  =========================================================================================================================  \n\n");
+
+
+            //Dictionary<string, string> bitson_dictionary = GetAOIParameters(unitTestExcelWorkbook_filePath, 2);
+            // Dictionary<string, string> dtbn_converter_dictionary = GetAOIParameters(unitTestExcelWorkbook_filePath, 3);
+
+            //foreach (var kvp in wetbulbtemp_dictionary)
+            //    Console.WriteLine($"{kvp.Key}: {kvp.Value}");
+
+            for (int i = 0; i < (orderedFiles.Count); i++)
+            {
+                // Console.WriteLine($"ordered files {orderedFiles[i].FullName}");
+                //if (i == 0)
+                //    firstUnitTest_filePath = orderedFiles[i].FullName;
+                //if (i == 1)
+                //    secondUnitTest_filePath = orderedFiles[i].FullName;
+                var currentExcelUnitTest_filePath = orderedFiles[i].FullName;
+                FileInfo existingFile = new FileInfo(currentExcelUnitTest_filePath);
+                using (ExcelPackage package = new ExcelPackage(existingFile))
+                {
+                    //get the first worksheet in the workbook
+                    ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+                    controllerName = worksheet.Cells[11, 2].Value?.ToString()!.Trim()!;
+                    acdFilePath = worksheet.Cells[11, 3].Value?.ToString()!.Trim()!;
+                    aoiTagName = worksheet.Cells[11, 11].Value?.ToString()!.Trim()!;
+                    aoiTagScope = worksheet.Cells[11, 15].Value?.ToString()!.Trim()!;
+                }
+
+                //    firstUnitTest_filePath = orderedFiles[0].FullName;
+                //FileInfo existingFile = new FileInfo(firstUnitTest_filePath);
+                //using (ExcelPackage package = new ExcelPackage(existingFile))
+                //{
+                //    //get the first worksheet in the workbook
+                //    ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+                //    acdFilePath = worksheet.Cells[11, 2].Value?.ToString()!.Trim()!;
+                //    aoiTagName = worksheet.Cells[11, 11].Value?.ToString()!.Trim()!;
+                //    aoiTagScope = worksheet.Cells[11, 15].Value?.ToString()!.Trim()!;
+                //}
+                //Console.WriteLine("acdFilePath: " + acdFilePath);
+                //Console.WriteLine("aoiTagName: " + aoiTagName);
+                //Console.WriteLine("aoiTagScope: " + aoiTagScope);
+
+                string exampleTestReportsFolder_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports";
+
+                //string githubPath = @"C:\examplefolder";                                           // 1st incoming argument = GitHub folder path
+                string acdFilename = "CICD_test.ACD";                                          // 2nd incoming argument = Logix Designer ACD filename
+                string name_mostRecentCommit = "example name";                                // 3rd incoming argument = name of person assocatied with most recent git commit
+                string email_mostRecentCommit = "example email";                               // 4th incoming argument = email of person associated with most recent git commit
+                string message_mostRecentCommit = "example commmit message";                             // 5th incoming argument = message provided in the most recent git commit
+                string hash_mostRecentCommit = "example commit hash";                                // 6th incoming argument = hash ID from most recent git commit
+                string jenkinsJobName = "example jenkins job";                                       // 7th incoming argument = the Jenkins job name
+                string jenkinsBuildNumber = "example jenkins build number";                                   // 8th incoming argument = the Jenkins job build number
+                                                                                                              //string acdFilePath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles\CICD_test.ACD"; // file path to ACD project
+                                                                                                              // string textFileReportDirectory = githubPath + @"test-reports\textFiles\";   // folder path to text test reports
+                                                                                                              // string excelFileReportDirectory = githubPath + @"test-reports\excelFiles\"; // folder path to excel test reports
+                                                                                                              // string textFileReportPath = Path.Combine(textFileReportDirectory, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.txt");    // new text test report filename
+                string excelFileReportPath = Path.Combine(exampleTestReportsFolder_filePath, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.xlsx"); // new excel test report filename
+
+                // Create an excel test report to be filled out durring testing.
+                if (i == 0)
+                {
+                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] START setting up excel test report workbook...");
+                    CreateFormattedExcelFile(excelFileReportPath, acdFilePath, name_mostRecentCommit, email_mostRecentCommit,
+                        jenkinsBuildNumber, jenkinsJobName, hash_mostRecentCommit, message_mostRecentCommit);
+                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE setting up excel test report workbook...\n---");
+
+                    // Check the test-reports folder and if over the specified file number limit, delete the oldest test files.
+                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] START checking test-reports folder...");
+                    CleanTestReportsFolder(exampleTestReportsFolder_filePath, 5);
+                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE checking test-reports folder...\n---");
+                }
+
+                // Set up emulated controller (based on the specified ACD file path) if one does not yet exist. If not, continue.
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START setting up Factory Talk Logix Echo emulated controller...");
+                string commPath = SetUpEmulatedController_Sync(acdFilePath, "UnitTest_Chassis", controllerName);
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE setting up Factory Talk Logix Echo emulated controller\n---");
+
+                // Open the ACD project file and store the reference as myProject.
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START opening ACD file...");
+                LogixProject myProject = await LogixProject.OpenLogixProjectAsync(acdFilePath);
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS opening ACD file\n---");
+
+                // Change controller mode to program & verify.
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START changing controller to PROGRAM...");
+                ChangeControllerMode_Async(commPath, "Program", myProject).GetAwaiter().GetResult();
+                if (ReadControllerMode_Async(commPath, myProject).GetAwaiter().GetResult() == "PROGRAM")
+                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS changing controller to PROGRAM\n---");
+                else
+                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] FAILURE changing controller to PROGRAM\n---");
+
+                // Download project.
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START downloading ACD file...");
+                DownloadProject_Async(commPath, myProject).GetAwaiter().GetResult();
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS downloading ACD file\n---");
+
+                // Change controller mode to run.
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START Changing controller to RUN...");
+                ChangeControllerMode_Async(commPath, "Run", myProject).GetAwaiter().GetResult();
+                if (ReadControllerMode_Async(commPath, myProject).GetAwaiter().GetResult() == "RUN")
+                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS changing controller to RUN\n---");
+                else
+                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] FAILURE changing controller to RUN\n---");
+
+
+                // ---------------------------------------------------------------------------------------------------------------------------
+
+
+
+                Dictionary<string, string> aoiParameters_dictionary = GetAOIParameters(orderedFiles[i].FullName);
+                string fullTagPath = aoiTagScope + $"[@Name='{aoiTagName}']";
+                Console.WriteLine("current fullTagPath: " + fullTagPath);
+                ByteString udtoraoi_byteString = Get_UDTorAOI_ByteString_Sync(fullTagPath, myProject, OperationMode.Online);
+                byte[] udtoraoi_byteArray = udtoraoi_byteString.ToByteArray();
+                StringBuilder udtoraoi_binaryString = new StringBuilder();
+                foreach (byte b in udtoraoi_byteArray)
+                {
+                    udtoraoi_binaryString.Append(Convert.ToString(b, 2).PadLeft(8, '0'));
+                    udtoraoi_binaryString.Append(" ");
+                }
+                string udtoraoi_String = udtoraoi_binaryString.ToString();
+                Dictionary<string, string> formatted_wetbulbtemp_dictionary = Format_UDTorAOI(aoiParameters_dictionary, udtoraoi_byteString, true);
+                foreach (var kvp in formatted_wetbulbtemp_dictionary)
+                    Console.WriteLine($"{kvp.Key}: {kvp.Value}");
+                Console.WriteLine("AOI binary string: \n" + udtoraoi_String);
+                Console.WriteLine("AOI # of bytes: " + udtoraoi_byteArray.Length + "\n\n");
+            }
+
+
+
+            //Console.WriteLine("fullTagPath: Controller/Tags/Tag[@Name='AOI_BITS_ON']");
+            //ByteString bitsOn_byteString = Get_UDTorAOI_ByteString_Sync("Controller/Tags/Tag[@Name='AOI_BITS_ON']", myProject, OperationMode.Online);
+            //byte[] bitsOn_byteArray = bitsOn_byteString.ToByteArray();
+            //StringBuilder bitsOn_binaryString = new StringBuilder();
+            //foreach (byte b in bitsOn_byteArray)
+            //{
+            //    bitsOn_binaryString.Append(Convert.ToString(b, 2).PadLeft(8, '0'));
+            //    bitsOn_binaryString.Append(" ");
+            //}
+            //string bitsOn_String = bitsOn_binaryString.ToString();
+            //Dictionary<string, string> formatted_bitson_dictionary = Format_UDTorAOI(bitson_dictionary, bitsOn_byteString, true);
+            //foreach (var kvp in formatted_bitson_dictionary)
+            //    Console.WriteLine($"{kvp.Key}: {kvp.Value}");
+            //Console.WriteLine("BITSON binary string: \n" + bitsOn_String);
+            //Console.WriteLine("BITSON # of bytes: " + bitsOn_byteArray.Length + "\n\n");
+
+
+            //Console.WriteLine("fullTagPath: Controller/Tags/Tag[@Name='AOI_DTBN_Converter']");
+            //ByteString DTBN_byteString = Get_UDTorAOI_ByteString_Sync("Controller/Tags/Tag[@Name='AOI_DTBN_Converter']", myProject, OperationMode.Online);
+            //byte[] DTBN_byteArray = DTBN_byteString.ToByteArray();
+            //StringBuilder DTBN_binaryString = new StringBuilder();
+            //foreach (byte b in DTBN_byteArray)
+            //{
+            //    DTBN_binaryString.Append(Convert.ToString(b, 2).PadLeft(8, '0'));
+            //    DTBN_binaryString.Append(" ");
+            //}
+            //string DTBN_String = DTBN_binaryString.ToString();
+            //Console.WriteLine("DTBN binary string: \n" + DTBN_String);
+            //Console.WriteLine("DTBN # of bytes: " + DTBN_byteArray.Length + "\n\n");
+
+            //Console.WriteLine("fullTagPath: Controller/Tags/Tag[@Name='UDT_AllAtomicDataTypes']");
+            //ByteString udt_byteString = Get_UDTorAOI_ByteString_Sync("Controller/Tags/Tag[@Name='UDT_AllAtomicDataTypes']", myProject, OperationMode.Online);
+            //byte[] udt_byteArray = udt_byteString.ToByteArray();
+            //StringBuilder udt_binaryString = new StringBuilder();
+            //foreach (byte b in udt_byteArray)
+            //{
+            //    udt_binaryString.Append(Convert.ToString(b, 2).PadLeft(8, '0'));
+            //    udt_binaryString.Append(" ");
+            //}
+            //string udt_String = udt_binaryString.ToString();
+            //Console.WriteLine("UDT binary string: \n" + udt_String);
+            //Console.WriteLine("UDT # of bytes: " + udt_byteArray.Length);
+
+            // END OF MAIN
+
+        }
+        #region METHODS: reading excel file
+        private static int GetPopulatedColumnCount(string filePath, int rowNumber)
+        {
+            int return_populatedColumnCount = 0;
+            FileInfo existingFile = new FileInfo(filePath);
+            using (ExcelPackage package = new ExcelPackage(existingFile))
+            {
+                //get the first worksheet in the workbook
+                ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+                int maxColumnNum = worksheet.Dimension.End.Column;
+
+                for (int col = 1; col <= maxColumnNum; col++)
+                {
+                    var cellValue = worksheet.Cells[rowNumber, col].Value;
+
+                    if (cellValue != null && !string.IsNullOrWhiteSpace(cellValue.ToString()))
+                        return_populatedColumnCount++;
+                }
+            }
+            return return_populatedColumnCount;
+        }
+
+
+        private static int GetPopulatedRowCount(string filePath, int columnNumber)
+        {
+            int return_populatedRowCount = 0;
+            FileInfo existingFile = new FileInfo(filePath);
+            using (ExcelPackage package = new ExcelPackage(existingFile))
+            {
+                //get the first worksheet in the workbook
+                ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+                int maxRowNum = worksheet.Dimension.End.Row;
+
+                for (int row = 1; row <= maxRowNum; row++)
+                {
+                    var cellValue = worksheet.Cells[row, columnNumber].Value;
+
+                    if (cellValue != null && !string.IsNullOrWhiteSpace(cellValue.ToString()))
+                        return_populatedRowCount++;
+                }
+            }
+            return return_populatedRowCount;
+        }
+
+
+        private static void ReadXLS(string filePath)
+        {
+            FileInfo existingFile = new FileInfo(filePath);
+            using (ExcelPackage package = new ExcelPackage(existingFile))
+            {
+                //get the first worksheet in the workbook
+                ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+                int colCount = worksheet.Dimension.End.Column;  //get Column Count
+                int rowCount = worksheet.Dimension.End.Row;     //get row count
+                Console.WriteLine("colCount: " + colCount);
+                Console.WriteLine("rowCount: " + rowCount);
+                for (int row = 1; row <= rowCount; row++)
+                {
+                    for (int col = 1; col <= colCount; col++)
+                    {
+                        Console.WriteLine(" Row:" + row + " column:" + col + " Value:" + worksheet.Cells[row, col].Value?.ToString()!.Trim()!);
+                    }
+                }
+            }
+        }
+
+        private static Dictionary<string, string> GetAOIParameters(string filePath)
+        {
+            Dictionary<string, string> returnAOIparameters = new Dictionary<string, string>();
+            FileInfo existingFile = new FileInfo(filePath);
+            using (ExcelPackage package = new ExcelPackage(existingFile))
+            {
+                int paramCount = GetPopulatedRowCount(filePath, 2) - 6;
+                //get the first worksheet in the workbook
+                ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+                for (int row = 0; row < paramCount; row++)
+                {
+                    var paramName = worksheet.Cells[row + 20, 2].Value;
+                    var paramDataType = worksheet.Cells[row + 20, 3].Value;
+                    returnAOIparameters[paramName.ToString()!.Trim()] = paramDataType.ToString()!.Trim();
+                }
+            }
+            return returnAOIparameters;
+        }
+        #endregion
+
+        #region METHODS: formatting text file
+        /// <summary>
+        /// Modify the input string to wrap the text to the next line after a certain length.<br/>
+        /// The input string is seperated per word and then each line is incrementally added to per word.<br/>
+        /// Start a new line when the character count of a line exceeds 125.
+        /// </summary>
+        /// <param name="inputString">The input string to be wrapped.</param>
+        /// <param name="indentLength">An integer that defines the length of the characters in the indent starting each new line.</param>
+        /// <param name="lineLimit">An integer that defines the maximum number of characters per line before a new line is created.</param>
+        /// <returns>A modified string that wraps every 125 characters.</returns>
+        private static string WrapText(string inputString, int indentLength, int lineLimit)
+        {
+            string[] words = inputString.Split(' ');
+            string indent = new(' ', indentLength);
+            StringBuilder newSentence = new();
+            string line = "";
+            int numberOfNewLines = 0;
+            foreach (string word in words)
+            {
+                word.Trim();
+                if ((line + word).Length > lineLimit)
+                {
+                    if (numberOfNewLines == 0)
+                        newSentence.AppendLine(line);
+                    else
+                        newSentence.AppendLine(indent + line);
+                    line = "";
+                    numberOfNewLines++;
+                }
+                line += string.Format($"{word} ");
+            }
+            if (line.Length > 0)
+            {
+                if (numberOfNewLines > 0)
+                    newSentence.AppendLine(indent + line);
+                else
+                    newSentence.AppendLine(line);
+            }
+            return newSentence.ToString();
+        }
+
+        /// <summary>
+        /// Create a banner used to identify the portion of the test being executed and write it to console.
+        /// </summary>
+        /// <param name="bannerName">The name displayed in the console banner.</param>
+        private static void CreateBanner(string bannerName)
+        {
+            string final_banner = "-=[" + bannerName + "]=---";
+            final_banner = final_banner.PadLeft(125, '-');
+            Console.WriteLine(final_banner);
+        }
+
+        /// <summary>
+        /// Delete all the oldest files in a specified folder that exceeds the chosen number of files to keep.
+        /// </summary>
+        /// <param name="folderPath">The full path to the folder that will be cleaned.</param>
+        /// <param name="keepCount">The number of files in a folder to be kept.</param>
+        private static void CleanTestReportsFolder(string folderPath, int keepCount)
+        {
+            Console.WriteLine($"STATUS:  {folderPath} set to retain {keepCount} test files");
+            string[] all_files = Directory.GetFiles(folderPath);
+            var orderedFiles = all_files.Select(f => new FileInfo(f)).OrderBy(f => f.CreationTime).ToList();
+            if (orderedFiles.Count > keepCount)
+            {
+                for (int i = 0; i < (orderedFiles.Count - keepCount); i++)
+                {
+                    FileInfo deleteThisFile = orderedFiles[i];
+                    deleteThisFile.Delete();
+                    Console.WriteLine($"SUCCESS: deleted {deleteThisFile.FullName}");
+                }
+            }
+            else
+                Console.WriteLine($"SUCCESS: no files needed to be deleted (currently {orderedFiles.Count} test files)");
+        }
+        #endregion
+
+        #region METHODS: formatting excel file
+        /// <summary>
+        /// Convert the integer number of a column to the Microsoft Excel letter formatting.
+        /// </summary>
+        /// <param name="columnNumber">Integer input to convert to excel letter formatting.</param>
+        /// <returns>A string in excel letter formatting.</returns>
+        private static string ConvertToExcelColumn(int columnNumber)
+        {
+            string columnName = "";
+
+            while (columnNumber > 0)
+            {
+                int modulo = (columnNumber - 1) % 26;
+                columnName = Convert.ToChar('A' + modulo) + columnName;
+                columnNumber = (columnNumber - modulo) / 26;
+            }
+
+            return columnName;
+        }
+
+        /// <summary>
+        /// Initialize the Mircosoft Excel test report with one sheet containing test information.
+        /// </summary>
+        /// <param name="excelFilePath">The file path to the excel workbook containing the test results.</param>
+        /// <param name="acdFilePath">The file path to the Studio 5000 Logix Designer ACD file being tested.</param>
+        /// <param name="name">The name of the person starting the test.</param>
+        /// <param name="email">The email of the person starting the test.</param>
+        /// <param name="buildNumber">The Jenkins job build number.</param>
+        /// <param name="jobName">The Jenkins job name.</param>
+        /// <param name="gitHash">The git hash of the commit being tested.</param>
+        /// <param name="gitMessage">The git message of the commit being tested.</param>
+        private static void CreateFormattedExcelFile(string excelFilePath, string acdFilePath, string name, string email, string buildNumber, string jobName, string gitHash, string gitMessage)
+        {
+            ExcelPackage excelPackage = new ExcelPackage();
+            var returnWorkBook = excelPackage.Workbook;
+
+            var TestSummarySheet = returnWorkBook.Worksheets.Add("TestSummary");
+            TestSummarySheet.Cells["B2:C2"].Merge = true;
+            TestSummarySheet.Cells["B2"].Value = "CI/CD Test Stage Results";
+            TestSummarySheet.Cells["B2"].Style.Font.Bold = true;
+            TestSummarySheet.Cells["B3"].Value = "Jenkins job name:";
+            TestSummarySheet.Cells["C3"].Value = jobName;
+            TestSummarySheet.Cells["B4"].Value = "Jenkins job build number:";
+            TestSummarySheet.Cells["C4"].Value = buildNumber;
+            TestSummarySheet.Cells["B5"].Value = "Tester name:";
+            TestSummarySheet.Cells["C5"].Value = name;
+            TestSummarySheet.Cells["B6"].Value = "Tester contact:";
+            TestSummarySheet.Cells["C6"].Value = email;
+            TestSummarySheet.Cells["B7"].Value = "ACD file specified:";
+            TestSummarySheet.Cells["C7"].Value = acdFilePath;
+            TestSummarySheet.Cells["B8"].Value = "Git commit hash to be verified:";
+            TestSummarySheet.Cells["C8"].Value = gitHash;
+            TestSummarySheet.Cells["B9"].Value = "Git commit message to be verified:";
+            TestSummarySheet.Cells["C9"].Value = gitMessage;
+
+            TestSummarySheet.Column(2).Style.Font.Size = 14;
+            TestSummarySheet.Column(2).AutoFit();
+            TestSummarySheet.Column(2).Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Right;
+            TestSummarySheet.Column(2).Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Top;
+            TestSummarySheet.Cells["B2"].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+            TestSummarySheet.Cells["B2"].Style.Font.Size = 20;
+
+            TestSummarySheet.Column(3).Style.Font.Size = 14;
+            TestSummarySheet.Column(3).Width = 95;
+            TestSummarySheet.Column(3).Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Left;
+            TestSummarySheet.Cells["C9"].Style.WrapText = true;
+            TestSummarySheet.Cells["C9"].Style.ShrinkToFit = true;
+
+            excelPackage.SaveAs(new System.IO.FileInfo(excelFilePath));
+        }
+
+        /// <summary>
+        /// Create the InitialTagValues sheet in the existing Microsoft Excel workbook.
+        /// </summary>
+        /// <param name="excelFilePath">The file path to the excel workbook containing the test results.</param>
+        private static void CreateInitialTagValuesSheet(string excelFilePath)
+        {
+            FileInfo existingFile = new FileInfo(excelFilePath);
+            using (ExcelPackage excelPackage = new ExcelPackage(existingFile))
+            {
+                var InitialTagValues = excelPackage.Workbook.Worksheets.Add("InitialTagValues");
+
+                InitialTagValues.Cells["A1"].Value = "Tag Name";
+                InitialTagValues.Cells["B1"].Value = "Tag Type";
+                InitialTagValues.Cells["C1"].Value = "Online Value";
+                InitialTagValues.Cells["D1"].Value = "Offline Value";
+                InitialTagValues.Cells["A1:D1"].Style.Font.Bold = true;
+
+                for (int i = 1; i <= 4; i++)
+                    InitialTagValues.Column(i).AutoFit();
+
+                InitialTagValues.View.FreezePanes(2, 1);
+                excelPackage.Save();
+            }
+        }
+
+        /// <summary>
+        /// Create the TurthTable_Example sheet and add the results of the MainRoutine Rung 3 test.
+        /// </summary>
+        /// <param name="excelFilePath">The file path to the excel workbook containing the test results.</param>
+        /// <param name="truthTableResults">The string array containing every boolean combination result from MainRoutine Rung 3 testing.</param>
+        private static void CreateTruthTableSheet(string excelFilePath, string[] truthTableResults)
+        {
+            FileInfo existingFile = new FileInfo(excelFilePath);
+            using (ExcelPackage excelPackage = new ExcelPackage(existingFile))
+            {
+                var TruthTable_ExampleSheet = excelPackage.Workbook.Worksheets.Add("TruthTable_Example");
+                TruthTable_ExampleSheet.View.FreezePanes(2, 2);
+                TruthTable_ExampleSheet.Cells["A1"].Value = "Rung 3 of Main Program Test Cases";
+                TruthTable_ExampleSheet.Cells["A1"].Style.Font.Bold = true;
+                TruthTable_ExampleSheet.Cells["A2"].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                TruthTable_ExampleSheet.Cells["A3"].Value = "UDT_AllAtomicDataTypes.ex_BOOL1";
+                TruthTable_ExampleSheet.Cells["A4"].Value = "UDT_AllAtomicDataTypes.ex_BOOL2";
+                TruthTable_ExampleSheet.Cells["A5"].Value = "UDT_AllAtomicDataTypes.ex_BOOL3";
+                TruthTable_ExampleSheet.Cells["A6"].Value = "UDT_AllAtomicDataTypes.ex_BOOL4";
+                TruthTable_ExampleSheet.Cells["A7"].Value = "UDT_AllAtomicDataTypes.ex_BOOL5";
+                TruthTable_ExampleSheet.Cells["A8"].Value = "UDT_AllAtomicDataTypes.ex_BOOL8";
+                int numberOfTests = truthTableResults.Length;
+                string columnLetter = "";
+                for (int i = 1; i < numberOfTests; i++)
+                {
+                    columnLetter = ConvertToExcelColumn(i + 1);
+                    TruthTable_ExampleSheet.Cells[$"{columnLetter}1"].Value = i;
+
+                    TruthTable_ExampleSheet.Cells[$"{columnLetter}3"].Value = Char.GetNumericValue(truthTableResults[i][7]);
+                    TruthTable_ExampleSheet.Cells[$"{columnLetter}4"].Value = Char.GetNumericValue(truthTableResults[i][6]);
+                    TruthTable_ExampleSheet.Cells[$"{columnLetter}5"].Value = Char.GetNumericValue(truthTableResults[i][5]);
+                    TruthTable_ExampleSheet.Cells[$"{columnLetter}6"].Value = Char.GetNumericValue(truthTableResults[i][4]);
+                    TruthTable_ExampleSheet.Cells[$"{columnLetter}7"].Value = Char.GetNumericValue(truthTableResults[i][3]);
+                    TruthTable_ExampleSheet.Cells[$"{columnLetter}8"].Value = Char.GetNumericValue(truthTableResults[i][0]);
+
+                    TruthTable_ExampleSheet.Column(i + 1).Width = 4;
+                    TruthTable_ExampleSheet.Column(i + 1).Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                }
+
+                TruthTable_ExampleSheet.Column(1).AutoFit();
+                TruthTable_ExampleSheet.Column(1).Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Right;
+                excelPackage.Save();
+            }
+        }
+
+        /// <summary>
+        /// Create the FinalTagValues sheet in the existing Microsoft Excel workbook.
+        /// </summary>
+        /// <param name="excelFilePath">The file path to the excel workbook containing the test results.</param>
+        private static void CreateFinalTagValuesSheet(string excelFilePath)
+        {
+            FileInfo existingFile = new FileInfo(excelFilePath);
+            using (ExcelPackage excelPackage = new ExcelPackage(existingFile))
+            {
+                var InitialTagValues = excelPackage.Workbook.Worksheets.Add("FinalTagValues");
+
+                InitialTagValues.Cells["A1"].Value = "Tag Name";
+                InitialTagValues.Cells["B1"].Value = "Tag Type";
+                InitialTagValues.Cells["C1"].Value = "Online Value";
+                InitialTagValues.Cells["D1"].Value = "Offline Value";
+                InitialTagValues.Cells["A1:D1"].Style.Font.Bold = true;
+
+                for (int i = 1; i <= 4; i++)
+                    InitialTagValues.Column(i).AutoFit();
+
+                InitialTagValues.View.FreezePanes(2, 1);
+                excelPackage.Save();
+            }
+        }
+
+        /// <summary>
+        /// Add a row containing tag information to a specific worksheet in an existing excel workbook.
+        /// </summary>
+        /// <param name="excelFilePath">The file path to the excel workbook containing the test results.</param>
+        /// <param name="sheetName">The name of the worksheet being modified.</param>
+        /// <param name="rowNumber">The row number of the worksheet to be modified.</param>
+        /// <param name="tagName">The name of the tag for which further information is provided.</param>
+        /// <param name="dataType">The datatype of the tag.</param>
+        /// <param name="onlineValue">The online value of the tag.</param>
+        /// <param name="offlineValue">The offline value of the tag.</param>
+        private static void AddRowToSheet(string excelFilePath, string sheetName, int rowNumber, string tagName, string dataType, string onlineValue, string offlineValue)
+        {
+            FileInfo existingFile = new FileInfo(excelFilePath);
+            using (ExcelPackage excelPackage = new ExcelPackage(existingFile))
+            {
+                ExcelWorksheet modifiedSheet = excelPackage.Workbook.Worksheets[sheetName];
+
+                modifiedSheet.Cells[$"A{rowNumber}"].Value = tagName;
+                modifiedSheet.Cells[$"B{rowNumber}"].Value = dataType;
+                modifiedSheet.Cells[$"C{rowNumber}"].Value = onlineValue;
+                modifiedSheet.Cells[$"D{rowNumber}"].Value = offlineValue;
+
+                for (int i = 1; i <= 4; i++)
+                    modifiedSheet.Column(i).AutoFit();
+
+                excelPackage.Save();
+            }
+        }
+        #endregion
+
+        #region METHODS: get/set basic data type tags
+        /// <summary>
+        /// Asynchronously get the online and offline value of a basic data type tag.<br/>
+        /// (basic data types handled: boolean, single integer, integer, double integer, long integer, real, string)
+        /// </summary>
+        /// <param name="tagName">The name of the tag in Studio 5000 Logix Designer whose value will be returned.</param>
+        /// <param name="type">The data type of the tag whose value will be returned.</param>
+        /// <param name="tagPath">
+        /// The tag path specifying the tag's scope and location in the Studio 5000 Logix Designer project.<br/>
+        /// The tag path is based on the XML filetype (L5X) encapsulation of elements.
+        /// </param>
+        /// <param name="project">An instance of the LogixProject class.</param>
+        /// <param name="printout">A boolean that, if True, prints the online and offline values to the console.</param>
+        /// <returns>
+        /// A Task that results in a string array containing tag information:<br/>
+        /// return_array[0] = tag name<br/>
+        /// return_array[1] = online tag value<br/>
+        /// return_array[2] = offline tag value
+        /// </returns>
+        private static async Task<string[]> Get_TagValue_Async(string tagName, DataType type, string tagPath, LogixProject project, bool printout)
+        {
+            string[] return_array = new string[3];
+            tagPath = tagPath + $"[@Name='{tagName}']";
+            return_array[0] = tagName;
+            try
+            {
+                if (type == DataType.BOOL)
+                {
+                    var tagValue_online = await project.GetTagValueBOOLAsync(tagPath, OperationMode.Online);
+                    return_array[1] = $"{tagValue_online}";
+                    var tagValue_offline = await project.GetTagValueBOOLAsync(tagPath, OperationMode.Offline);
+                    return_array[2] = $"{tagValue_offline}";
+
+                }
+                else if (type == DataType.SINT)
+                {
+                    var tagValue_online = await project.GetTagValueSINTAsync(tagPath, OperationMode.Online);
+                    return_array[1] = $"{tagValue_online}";
+                    var tagValue_offline = await project.GetTagValueSINTAsync(tagPath, OperationMode.Offline);
+                    return_array[2] = $"{tagValue_offline}";
+                }
+                else if (type == DataType.INT)
+                {
+                    var tagValue_online = await project.GetTagValueINTAsync(tagPath, OperationMode.Online);
+                    return_array[1] = $"{tagValue_online}";
+                    var tagValue_offline = await project.GetTagValueINTAsync(tagPath, OperationMode.Offline);
+                    return_array[2] = $"{tagValue_offline}";
+                }
+                else if (type == DataType.DINT)
+                {
+                    var tagValue_online = await project.GetTagValueDINTAsync(tagPath, OperationMode.Online);
+                    return_array[1] = $"{tagValue_online}";
+                    var tagValue_offline = await project.GetTagValueDINTAsync(tagPath, OperationMode.Offline);
+                    return_array[2] = $"{tagValue_offline}";
+                }
+                else if (type == DataType.LINT)
+                {
+                    var tagValue_online = await project.GetTagValueLINTAsync(tagPath, OperationMode.Online);
+                    return_array[1] = $"{tagValue_online}";
+                    var tagValue_offline = await project.GetTagValueLINTAsync(tagPath, OperationMode.Offline);
+                    return_array[2] = $"{tagValue_offline}";
+                }
+                else if (type == DataType.REAL)
+                {
+                    var tagValue_online = await project.GetTagValueREALAsync(tagPath, OperationMode.Online);
+                    return_array[1] = $"{tagValue_online}";
+                    var tagValue_offline = await project.GetTagValueREALAsync(tagPath, OperationMode.Offline);
+                    return_array[2] = $"{tagValue_offline}";
+                }
+                else if (type == DataType.STRING)
+                {
+                    var tagValue_online = await project.GetTagValueSTRINGAsync(tagPath, OperationMode.Online);
+                    return_array[1] = (tagValue_online == "") ? "<empty_string>" : $"{tagValue_online}";
+                    var tagValue_offline = await project.GetTagValueSTRINGAsync(tagPath, OperationMode.Offline);
+                    return_array[2] = (tagValue_offline == "") ? "<empty_string>" : $"{tagValue_offline}";
+                }
+                else
+                    Console.WriteLine(WrapText($"ERROR executing command: The tag {tagName} cannot be handled. Select either DINT, BOOL, or REAL.", 9, 125));
+            }
+            catch (LogixSdkException ex)
+            {
+                Console.WriteLine($"ERROR getting tag {tagName}");
+                Console.WriteLine(ex.Message);
+            }
+
+            if (printout)
+            {
+                string online_message = $"online value: {return_array[1]}";
+                string offline_message = $"offline value: {return_array[2]}";
+                Console.WriteLine($"SUCCESS: " + tagName.PadRight(40, ' ') + online_message.PadRight(35, ' ') + offline_message.PadRight(35, ' '));
+            }
+
+            return return_array;
+        }
+
+        /// <summary>
+        /// Run the GetTagValueAsync method synchronously.<br/>
+        /// Get the online and offline value of a basic data type tag.<br/>
+        /// (basic data types handled: boolean, single integer, integer, double integer, long integer, real, string)
+        /// </summary>
+        /// <param name="tagName">The name of the tag whose value will be returned.</param>
+        /// <param name="type">The data type of the tag whose value will be returned.</param>
+        /// <param name="tagPath">
+        /// The tag path specifying the tag's scope and location in the Studio 5000 Logix Designer project.<br/>
+        /// The tag path is based on the XML filetype (L5X) encapsulation of elements.
+        /// </param>
+        /// <param name="project">An instance of the LogixProject class.</param>
+        /// <param name="printout">A boolean that, if True, prints the online and offline values to the console.</param>
+        /// <returns>
+        /// A Task that results in a string array containing tag information:<br/>
+        /// return_array[0] = tag name<br/>
+        /// return_array[1] = online tag value<br/>
+        /// return_array[2] = offline tag value
+        /// </returns>
+        private static string[] Get_TagValue_Sync(string tagName, DataType type, string tagPath, LogixProject project, bool printout)
+        {
+            var task = Get_TagValue_Async(tagName, type, tagPath, project, printout);
+            task.Wait();
+            return task.Result;
+        }
+
+        /// <summary>
+        /// Asynchronously set either the online or offline value of a basic data type tag.
+        /// (basic data types handled: boolean, single integer, integer, double integer, long integer, real, string)
+        /// </summary>
+        /// <param name="tagName">The name of the tag whose value will be set.</param>
+        /// <param name="newTagValue">The value of the tag that will be set.</param>
+        /// <param name="mode">This specifies whether the 'Online' or 'Offline' value of the tag is the one to set.</param>
+        /// <param name="type">The data type of the tag whose value will be set.</param>
+        /// <param name="tagPath">
+        /// The tag path specifying the tag's scope and location in the Studio 5000 Logix Designer project.
+        /// The tag path is based on the XML filetype (L5X) encapsulation of elements.
+        /// </param>
+        /// <param name="project">An instance of the LogixProject class.</param>
+        /// <param name="printout">A boolean that, if True, prints the online and offline values to the console.</param>
+        /// <returns>A Task that will set the online or offline value of a basic data type tag.</returns>
+        private static async Task Set_TagValue_Async(string tagName, string newTagValue, OperationMode mode, DataType type, string tagPath, LogixProject project, bool printout)
+        {
+            tagPath = tagPath + $"[@Name='{tagName}']";
+            string[] old_tag_values = await Get_TagValue_Async(tagName, type, tagPath, project, false);
+            string old_tag_value = "";
+            try
+            {
+                if (mode == OperationMode.Online)
+                {
+
+                    if (type == DataType.BOOL)
+                        await project.SetTagValueBOOLAsync(tagPath, OperationMode.Online, bool.Parse(newTagValue));
+                    else if (type == DataType.SINT)
+                        await project.SetTagValueSINTAsync(tagPath, OperationMode.Online, sbyte.Parse(newTagValue));
+                    else if (type == DataType.INT)
+                        await project.SetTagValueINTAsync(tagPath, OperationMode.Online, short.Parse(newTagValue));
+                    else if (type == DataType.DINT)
+                        await project.SetTagValueDINTAsync(tagPath, OperationMode.Online, int.Parse(newTagValue));
+                    else if (type == DataType.LINT)
+                        await project.SetTagValueLINTAsync(tagPath, OperationMode.Online, long.Parse(newTagValue));
+                    else if (type == DataType.REAL)
+                        await project.SetTagValueREALAsync(tagPath, OperationMode.Online, float.Parse(newTagValue));
+                    else if (type == DataType.STRING)
+                        await project.SetTagValueSTRINGAsync(tagPath, OperationMode.Online, newTagValue);
+                    else
+                        Console.WriteLine($"ERROR executing command: The data type cannot be handled. Select either DINT, BOOL, or REAL.");
+                    old_tag_value = old_tag_values[1];
+                }
+                else if (mode == OperationMode.Offline)
+                {
+                    if (type == DataType.BOOL)
+                        await project.SetTagValueBOOLAsync(tagPath, OperationMode.Offline, bool.Parse(newTagValue));
+                    else if (type == DataType.SINT)
+                        await project.SetTagValueSINTAsync(tagPath, OperationMode.Offline, sbyte.Parse(newTagValue));
+                    else if (type == DataType.INT)
+                        await project.SetTagValueINTAsync(tagPath, OperationMode.Offline, short.Parse(newTagValue));
+                    else if (type == DataType.DINT)
+                        await project.SetTagValueDINTAsync(tagPath, OperationMode.Offline, int.Parse(newTagValue));
+                    else if (type == DataType.LINT)
+                        await project.SetTagValueLINTAsync(tagPath, OperationMode.Offline, long.Parse(newTagValue));
+                    else if (type == DataType.REAL)
+                        await project.SetTagValueREALAsync(tagPath, OperationMode.Offline, float.Parse(newTagValue));
+                    else if (type == DataType.STRING)
+                        await project.SetTagValueSTRINGAsync(tagPath, OperationMode.Offline, newTagValue);
+                    else
+                        Console.WriteLine($"ERROR executing command: The data type cannot be handled. Select either DINT, BOOL, or REAL.");
+                    old_tag_value = old_tag_values[2];
+                }
+            }
+            catch (LogixSdkException ex)
+            {
+                Console.WriteLine("Unable to set tag value.");
+                Console.WriteLine(ex.Message);
+            }
+
+            try
+            {
+                await project.SaveAsync();
+            }
+            catch (LogixSdkException ex)
+            {
+                Console.WriteLine("Unable to save project");
+                Console.WriteLine(ex.Message);
+            }
+
+            if (printout)
+            {
+                string new_tag_value_string = Convert.ToString(newTagValue);
+                if ((new_tag_value_string == "1") && (type == DataType.BOOL)) { new_tag_value_string = "True"; }
+                if ((new_tag_value_string == "0") && (type == DataType.BOOL)) { new_tag_value_string = "False"; }
+                Console.WriteLine("SUCCESS: " + mode + " " + old_tag_values[0].PadRight(40, ' ') + old_tag_value.PadLeft(20, ' ') + "  -->  " + new_tag_value_string);
+            }
+        }
+
+        /// <summary>
+        /// Run the SetTagValueAsync method synchronously.
+        /// Set either the online or offline value of a basic data type tag.
+        /// (basic data types handled: boolean, single integer, integer, double integer, long integer, real, string)
+        /// </summary>
+        /// <param name="tagName">The name of the tag whose value will be set.</param>
+        /// <param name="newTagValue">The value of the tag that will be set.</param>
+        /// <param name="mode">This specifies whether the 'Online' or 'Offline' value of the tag is the one to set.</param>
+        /// <param name="type">The data type of the tag whose value will be set.</param>
+        /// <param name="tagPath">
+        /// The tag path specifying the tag's scope and location in the Studio 5000 Logix Designer project.
+        /// The tag path is based on the XML filetype (L5X) encapsulation of elements.
+        /// </param>
+        /// <param name="project">An instance of the LogixProject class.</param>
+        /// <param name="printout">A boolean that, if True, prints the online and offline values to the console.</param>
+        private static void Set_TagValue_Sync(string tagName, string newTagValue, OperationMode mode, DataType type, string tagPath, LogixProject project, bool printout)
+        {
+            var task = Set_TagValue_Async(tagName, newTagValue, mode, type, tagPath, project, printout);
+            task.Wait();
+        }
+        #endregion
+
+        #region METHODS: get/set complex data type tags
+        /// <summary>
+        /// Asynchronously get the online and offline data in ByteString form for the complex tag UDT_AllAtomicDataTypes.
+        /// </summary>
+        /// <param name="fullTagPath">
+        /// The tag path specifying the tag's scope and location in the Studio 5000 Logix Designer project.<br/>
+        /// The tag path is based on the XML filetype (L5X) encapsulation of elements.</param>
+        /// <param name="project">An instance of the LogixProject class.</param>
+        /// <returns>
+        /// A Task that results in a ByteString array containing UDT_AllAtomicDataTypes information:<br/>
+        /// returnByteStringArray[0] = online tag values<br/>
+        /// returnByteStringArray[1] = offline tag values
+        /// </returns>
+        private static async Task<ByteString> Get_UDTorAOI_ByteString_Async(string fullTagPath, LogixProject project, OperationMode online_or_offline)
+        {
+            ByteString returnByteStringArray = ByteString.Empty;
+            if (online_or_offline == OperationMode.Online)
+                returnByteStringArray = await project.GetTagValueAsync(fullTagPath, OperationMode.Online, DataType.BYTE_ARRAY);
+            else if (online_or_offline == OperationMode.Offline)
+                returnByteStringArray = await project.GetTagValueAsync(fullTagPath, OperationMode.Offline, DataType.BYTE_ARRAY);
+            else
+                Console.WriteLine("FAILURE: The input " + online_or_offline + " is not a valid selection. Input either OperationMode.Online or OperationMode.Offline");
+
+            return returnByteStringArray;
+        }
+
+        /// <summary>
+        /// Run the GetUDT_AllAtomicDataTypesAsync Method synchronously.<br/>
+        /// Get the online and offline data in ByteString form for the complex tag UDT_AllAtomicDataTypes.
+        /// </summary>
+        /// <param name="tagPath">
+        /// The tag path specifying the tag's scope and location in the Studio 5000 Logix Designer project.<br/>
+        /// The tag path is based on the XML filetype (L5X) encapsulation of elements.</param>
+        /// <param name="project">An instance of the LogixProject class.</param>
+        /// <returns>
+        /// A ByteString array containing UDT_AllAtomicDataTypes information:<br/>
+        /// returnByteStringArray[0] = online tag values<br/>
+        /// returnByteStringArray[1] = offline tag values
+        /// </returns>
+        private static ByteString Get_UDTorAOI_ByteString_Sync(string tagPath, LogixProject project, OperationMode online_or_offline)
+        {
+            var task = Get_UDTorAOI_ByteString_Async(tagPath, project, online_or_offline);
+            task.Wait();
+            return task.Result;
+        }
+
+
+        private static int CountNumberOfOccurences(Dictionary<string, string> input_dictionary, string input_datatype)
+        {
+            int return_NumberOfDataTypes = 0;
+
+            foreach (var val in input_dictionary)
+            {
+                if (val.Value == input_datatype)
+                    return_NumberOfDataTypes++;
+            }
+            return return_NumberOfDataTypes;
+        }
+
+        private static string ReverseByteArrayToString(byte[] byteArray)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            for (int i = byteArray.Length - 1; i >= 0; i--)
+            {
+                sb.Append(Convert.ToString(byteArray[i], 2).PadLeft(8, '0'));
+            }
+
+            return sb.ToString();
+        }
+
+        private static Dictionary<string, string> Format_UDTorAOI(Dictionary<string, string> input_dictionary, ByteString input_AOIorUDT_ByteString, bool printout)
+        {
+            //ByteString bitsOn_byteString = Get_UDTorAOI_ByteString_Sync("Controller/Tags/Tag[@Name='AOI_BITS_ON']", myProject, OperationMode.Online);
+            //byte[] bitsOn_byteArray = bitsOn_byteString.ToByteArray();
+            //StringBuilder bitsOn_binaryString = new StringBuilder();
+            //foreach (byte b in bitsOn_byteArray)
+            //{
+            //    bitsOn_binaryString.Append(Convert.ToString(b, 2).PadLeft(8, '0'));
+            //    bitsOn_binaryString.Append(" ");
+            //}
+            //string bitsOn_String = bitsOn_binaryString.ToString();
+            //Console.WriteLine("BITSON binary string: \n" + bitsOn_String);
+            //Console.WriteLine("BITSON # of bytes: " + bitsOn_byteArray.Length + "\n\n");
+
+            //foreach (var kvp in AOIparams)
+            //    Console.WriteLine($"{kvp.Key}: {kvp.Value}");
+
+            //var paramName = worksheet.Cells[row + 20, 2].Value;
+            //var paramDataType = worksheet.Cells[row + 20, 3].Value;
+            //returnAOIparameters[paramName.ToString()!.Trim()] = paramDataType.ToString()!.Trim();
+
+            //string[][] returnString = new string[3][];
+
+            //for (int i = 0; i < 200; i++)
+            //{
+            //    if ((i % 32 == 1) && (i > 1))
+            //    {
+            //        Console.WriteLine("i: " + i);
+            //        Console.WriteLine("remainder: " + (i % 32));
+            //    }
+            //}
+
+
+            // initialize values needed for this method
+            Dictionary<string, string> return_ParameterValues = new Dictionary<string, string>();
+            byte[] input_bytearray = input_AOIorUDT_ByteString.ToByteArray();
+            int inputposition_inbytearray = 0;
+            int boolposition_inbytearray = 0;
+            int boolCount = 0;
+            int sintposition_inbytearray = 0;
+            int sintCount = 0;
+            int intposition_inbytearray = 0;
+            int intCount = 0;
+
+            // loop through each of the data types provided in the excel sheet
+            foreach (var kvp in input_dictionary)
+            {
+                Console.WriteLine("START WITH CURRENT DATATYPE: " + kvp.Value + " | inputposition_inbytearray: " + inputposition_inbytearray);
+
+                if (kvp.Value == "BOOL")
+                {
+                    // Update which location of the input byte array is being checked for bools every 32 booleans.
+                    if (((boolCount % 32 == 1) && (boolCount > 1)) || (boolCount == 0))
+                    {
+                        boolposition_inbytearray = inputposition_inbytearray;
+                        inputposition_inbytearray += 4;
+                    }
+
+                    byte[] bools_bytearray = new byte[4];
+                    Array.ConstrainedCopy(input_bytearray, boolposition_inbytearray, bools_bytearray, 0, 4);
+
+                    string bools_string = ReverseByteArrayToString(bools_bytearray);
+
+                    // place the value of 
+                    return_ParameterValues[kvp.Key] = bools_string[31 - boolCount].ToString();
+
+                    //// if over 16 booleans, move to the next "host member" containing any other bools
+                    //if (boolCount == 0)
+                    //    inputposition_inbytearray += 4;
+
+                    boolCount++;
+                    //Console.WriteLine("BOOLS_STRING " + bools_string); 
+                    //Console.WriteLine(bools_string.Length);
+                    //foreach (var kvp2 in return_ParameterValues)
+                    //    Console.WriteLine($"{kvp2.Key}: {kvp2.Value}");
+                }
+
+                else if (kvp.Value == "SINT")
+                {
+                    //// Update which location of the input byte array is being checked for sints every 4 single integers.
+                    //if (((sintCount % 2 == 0) && (sintCount > 1)) || (sintCount == 0))
+                    //{
+                    //    sintposition_inbytearray = inputposition_inbytearray;
+                    //    inputposition_inbytearray += 2;
+                    //}
+                    //byte[] sint_bytearray = new byte[1];
+                    //sintposition_inbytearray += sintCount % 2;
+                    //Console.WriteLine("SINT-INTERNAL position: " + sintposition_inbytearray);
+                    //Array.ConstrainedCopy(input_bytearray, sintposition_inbytearray, sint_bytearray, 0, 1);
+                    //string sint_string = Convert.ToString(unchecked((sbyte)sint_bytearray[0]));
+                    //return_ParameterValues[kvp.Key] = sint_string;
+                    //sintCount++;
+
+                    //if ((inputposition_inbytearray % 2) > 0)
+                    //    inputposition_inbytearray += 2 - (inputposition_inbytearray % 2);
+
+                    // Update which location of the input byte array is being checked for sints every 4 single integers.
+                    byte[] sint_bytearray = new byte[1];
+                    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, sint_bytearray, 0, 1);
+                    string sint_string = Convert.ToString(unchecked((sbyte)sint_bytearray[0]));
+                    return_ParameterValues[kvp.Key] = sint_string;
+                    inputposition_inbytearray += 1;
+                }
+
+                else if (kvp.Value == "INT")
+                {
+                    // Update which location of the input byte array is being checked for sints every 4 single integers.
+                    //if (((intCount % 2 == 0) && (intCount > 1)) || (intCount == 0))
+                    //{
+                    //    intposition_inbytearray = inputposition_inbytearray;
+                    //    inputposition_inbytearray += 2;
+                    //}
+
+                    if ((inputposition_inbytearray % 2) > 0)
+                        inputposition_inbytearray += 2 - (inputposition_inbytearray % 2);
+
+                    byte[] int_bytearray = new byte[2];
+                    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, int_bytearray, 0, 2);
+                    string int_string = Convert.ToString(BitConverter.ToInt16(int_bytearray));
+                    return_ParameterValues[kvp.Key] = int_string;
+                    //intCount++;
+                    inputposition_inbytearray += 2;
+                }
+                //var ex_INT = new byte[2];
+                //Array.ConstrainedCopy(UDT_ByteArray, 2, ex_INT, 0, 2);
+                //returnString[i + 1][9] = Convert.ToString(BitConverter.ToInt16(ex_INT));
+
+                else if (kvp.Value == "DINT")
+                {
+                    if ((inputposition_inbytearray % 4) > 0)
+                        inputposition_inbytearray += 4 - (inputposition_inbytearray % 4);
+
+                    byte[] dint_bytearray = new byte[4];
+                    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, dint_bytearray, 0, 4);
+                    string dint_string = Convert.ToString(BitConverter.ToInt32(dint_bytearray));
+                    return_ParameterValues[kvp.Key] = dint_string;
+                    inputposition_inbytearray += 4;
+                }
+
+                else if (kvp.Value == "LINT")
+                {
+                    if ((inputposition_inbytearray % 8) > 0)
+                        inputposition_inbytearray += 8 - (inputposition_inbytearray % 8);
+
+                    byte[] lint_bytearray = new byte[8];
+                    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, lint_bytearray, 0, 8);
+                    string lint_string = Convert.ToString(BitConverter.ToInt64(lint_bytearray));
+                    return_ParameterValues[kvp.Key] = lint_string;
+                    inputposition_inbytearray += 8;
+                }
+
+                else if (kvp.Value == "REAL")
+                {
+                    if ((inputposition_inbytearray % 4) > 0)
+                        inputposition_inbytearray += 4 - (inputposition_inbytearray % 4);
+
+                    byte[] real_bytearray = new byte[4];
+                    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, real_bytearray, 0, 4);
+                    string real_string = Convert.ToString(BitConverter.ToSingle(real_bytearray));
+                    return_ParameterValues[kvp.Key] = real_string;
+                    inputposition_inbytearray += 4;
+                }
+
+                //else if (kvp.Value == "STRING")
+                //{
+                //    byte[] real_bytearray = new byte[24];
+                //    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, real_bytearray, 0, 4);
+                //    string real_string = Convert.ToString(BitConverter.ToSingle(real_bytearray));
+                //    return_ParameterValues[kvp.Key] = real_string;
+                //    inputposition_inbytearray += 4;
+                //}
+
+
+                int currentDataTypeCount = CountNumberOfOccurences(input_dictionary, kvp.Value);
+
+            }
+
+            return return_ParameterValues;
+
+            //returnString[0] = new string[] { "UDT_AllAtomicDataTypes.ex_BOOL1", "UDT_AllAtomicDataTypes.ex_BOOL2", "UDT_AllAtomicDataTypes.ex_BOOL3",
+            //    "UDT_AllAtomicDataTypes.ex_BOOL4", "UDT_AllAtomicDataTypes.ex_BOOL5", "UDT_AllAtomicDataTypes.ex_BOOL6", "UDT_AllAtomicDataTypes.ex_BOOL7",
+            //    "UDT_AllAtomicDataTypes.ex_BOOL8", "UDT_AllAtomicDataTypes.ex_SINT", "UDT_AllAtomicDataTypes.ex_INT", "UDT_AllAtomicDataTypes.ex_DINT",
+            //    "UDT_AllAtomicDataTypes.ex_LINT", "UDT_AllAtomicDataTypes.ex_REAL", "UDT_AllAtomicDataTypes.ex_STRING" };
+            //returnString[1] = new string[15];
+            //returnString[2] = new string[15];
+
+
+            //var UDT_ByteArray = new byte[byteStringArray.Length];
+            //for (int j = 0; j < UDT_ByteArray.Length; j++)
+            //    UDT_ByteArray[j] = byteStringArray[j];
+
+            //var ex_BOOLs = new byte[1];
+            //Array.ConstrainedCopy(UDT_ByteArray, 0, ex_BOOLs, 0, 1);
+            //string ex_BOOLS_binaryString = Convert.ToString(ex_BOOLs[0], 2).PadLeft(8, '0');
+            //for (int j = 0; j < 8; j++)
+            //    returnString[i + 1][j] = (Convert.ToString(ex_BOOLS_binaryString[7 - j]) == "1") ? "True" : "False";
+
+            //var ex_SINT = new byte[1];
+            //Array.ConstrainedCopy(UDT_ByteArray, 1, ex_SINT, 0, 1);
+            //returnString[i + 1][8] = Convert.ToString(unchecked((sbyte)ex_SINT[0]));
+
+            //var ex_INT = new byte[2];
+            //Array.ConstrainedCopy(UDT_ByteArray, 2, ex_INT, 0, 2);
+            //returnString[i + 1][9] = Convert.ToString(BitConverter.ToInt16(ex_INT));
+
+            //var ex_DINT = new byte[4];
+            //Array.ConstrainedCopy(UDT_ByteArray, 4, ex_DINT, 0, 4);
+            //returnString[i + 1][10] = Convert.ToString(BitConverter.ToInt32(ex_DINT));
+
+            //var ex_LINT = new byte[8];
+            //Array.ConstrainedCopy(UDT_ByteArray, 8, ex_LINT, 0, 8);
+            //returnString[i + 1][11] = Convert.ToString(BitConverter.ToInt64(ex_LINT));
+
+            //var ex_REAL = new byte[4];
+            //Array.ConstrainedCopy(UDT_ByteArray, 16, ex_REAL, 0, 4);
+            //returnString[i + 1][12] = Convert.ToString(BitConverter.ToSingle(ex_REAL));
+
+            //var ex_STRING = new byte[UDT_ByteArray.Length - 24];
+            //Array.ConstrainedCopy(UDT_ByteArray, 24, ex_STRING, 0, UDT_ByteArray.Length - 24);
+            //string string_result = Encoding.ASCII.GetString(ex_STRING).Replace("\0", "");
+            //returnString[i + 1][13] = (string_result == "") ? "<empty_string>" : $"{string_result}";
+
+            //returnString[i + 1][14] = Convert.ToString(byteStringArray[i].Length);
+
+
+            //if (printout)
+            //{
+            //    for (int i = 0; i < returnString[0].Length; i++)
+            //    {
+            //        var online_message = $"online value: {returnString[1][i]}";
+            //        var offline_message = $"offline value: {returnString[2][i]}";
+            //        Console.WriteLine($"SUCCESS: " + returnString[0][i].PadRight(40, ' ') + online_message.PadRight(35, ' ') + offline_message.PadRight(35, ' '));
+            //    }
+            //}
+
+            //return returnString;
+        }
+
+
+        ///// <summary>
+        ///// Asynchronously set either the online or offline value of a member of the complex data type tag UDT_AllAtomicDataTypes. Each member is a basic data type.<br/>
+        ///// (basic data types handled: boolean, single integer, integer, double integer, long integer, real, string)
+        ///// </summary>
+        ///// <param name="newTagValue">The value of the UDT_AllAtomicDataTypes tag member that will be set.</param>
+        ///// <param name="type">>The data type of the UDT_AllAtomicDataTypes tag member whose value will be set.</param>
+        ///// <param name="mode">This specifies whether the 'Online' or 'Offline' value of the UDT_AllAtomicDataTypes tag member is the one to set.</param>
+        ///// <param name="project">An instance of the LogixProject class.</param>
+        ///// <param name="printout">A boolean that, if True, prints the "before" and "after" values of the UDT_AllAtomicDataTypes tag member to the console.</param>
+        ///// <returns>A Task that will set the online or offline value of the specified UDT_AllAtomicDataTypes tag member.</returns>
+        //private static async Task Set_UDTAllAtomicDataTypes_Async(string newTagValue, DataType type, OperationMode mode, LogixProject project, bool printout)
+        //{
+        //    string tagPath = $"Controller/Tags/Tag[@Name='UDT_AllAtomicDataTypes']";
+        //    ByteString[] old_byteString = Get_UDTorAOI_ByteString_Sync(tagPath, project);
+        //    ByteString[] new_byteString = Get_UDTorAOI_ByteString_Sync(tagPath, project);
+        //    string[][] old_UDT_AllAtomicDataTypes = Format_UDTAllAtomicDataTypes(old_byteString, false);
+        //    int on_off = 0;
+        //    byte[] new_byteArray = new byte[new_byteString[1].Length];
+
+        //    if (mode == OperationMode.Online)
+        //        new_byteArray = new_byteString[0].ToByteArray();
+        //    else if (mode == OperationMode.Offline)
+        //        new_byteArray = new_byteString[1].ToByteArray();
+
+        //    if (type == DataType.BOOL)
+        //        new_byteArray[0] = Convert.ToByte(newTagValue, 2);
+
+        //    else if (type == DataType.SINT)
+        //    {
+        //        string sint_string = Convert.ToString(long.Parse(newTagValue), 2);
+        //        sint_string = sint_string.Substring(sint_string.Length - 8);
+        //        new_byteArray[1] = Convert.ToByte(sint_string, 2);
+        //    }
+
+        //    else if (type == DataType.INT)
+        //    {
+        //        byte[] int_byteArray = BitConverter.GetBytes(int.Parse(newTagValue));
+        //        for (int i = 0; i < 2; ++i)
+        //            new_byteArray[i + 2] = int_byteArray[i];
+        //    }
+
+        //    else if (type == DataType.DINT)
+        //    {
+        //        byte[] dint_byteArray = BitConverter.GetBytes(long.Parse(newTagValue));
+        //        for (int i = 0; i < 4; ++i)
+        //            new_byteArray[i + 4] = dint_byteArray[i];
+        //    }
+
+        //    else if (type == DataType.LINT)
+        //    {
+        //        byte[] lint_byteArray = BitConverter.GetBytes(long.Parse(newTagValue));
+        //        for (int i = 0; i < 8; ++i)
+        //            new_byteArray[i + 8] = lint_byteArray[i];
+        //    }
+
+        //    else if (type == DataType.REAL)
+        //    {
+        //        byte[] real_byteArray = BitConverter.GetBytes(float.Parse(newTagValue));
+        //        for (int i = 0; i < 4; ++i)
+        //            new_byteArray[i + 16] = real_byteArray[i];
+        //    }
+
+        //    else if (type == DataType.STRING)
+        //    {
+        //        byte[] real_byteArray = new byte[newTagValue.Length];
+        //        for (int i = 0; i < real_byteArray.Length; ++i)
+        //            new_byteArray[i + 24] = (byte)newTagValue[i];
+        //    }
+
+        //    if (mode == OperationMode.Online)
+        //    {
+        //        new_byteString[0] = ByteString.CopyFrom(new_byteArray);
+        //        new_byteString[1] = old_byteString[1];
+        //        on_off = 1;
+        //    }
+        //    else if (mode == OperationMode.Offline)
+        //    {
+        //        new_byteString[0] = old_byteString[0];
+        //        new_byteString[1] = ByteString.CopyFrom(new_byteArray);
+        //        on_off = 2;
+        //    }
+
+        //    string[][] new_UDT_AllAtomicDataTypes = Format_UDTAllAtomicDataTypes(new_byteString, false);
+        //    await project.SetTagValueAsync(tagPath, mode, new_byteString[on_off - 1].ToByteArray(), DataType.BYTE_ARRAY);
+        //    if (printout)
+        //    {
+        //        for (int i = 0; i < old_UDT_AllAtomicDataTypes[1].Length - 1; ++i)
+        //            if (old_UDT_AllAtomicDataTypes[on_off][i] != new_UDT_AllAtomicDataTypes[on_off][i])
+        //                Console.WriteLine("SUCCESS: " + mode + " " + old_UDT_AllAtomicDataTypes[0][i].PadRight(40, ' ') + old_UDT_AllAtomicDataTypes[on_off][i].PadLeft(20, ' ') + "  -->  " + new_UDT_AllAtomicDataTypes[on_off][i]);
+        //    }
+        //}
+
+        ///// <summary>
+        ///// Run the SetUDT_AllAtomicDataTypesAsync Method synchronously.<br/>
+        ///// Set either the online or offline value of a member of the complex data type tag UDT_AllAtomicDataTypes. Each member is a basic data type.<br/>
+        ///// (basic data types handled: boolean, single integer, integer, double integer, long integer, real, string)
+        ///// </summary>
+        ///// <param name="newTagValue">The value of the UDT_AllAtomicDataTypes tag member that will be set.</param>
+        ///// <param name="type">>The data type of the UDT_AllAtomicDataTypes tag member whose value will be set.</param>
+        ///// <param name="mode">This specifies whether the 'Online' or 'Offline' value of the UDT_AllAtomicDataTypes tag member is the one to set.</param>
+        ///// <param name="project">An instance of the LogixProject class.</param>
+        ///// <param name="printout">A boolean that, if True, prints the "before" and "after" values of the UDT_AllAtomicDataTypes tag member to the console.</param>
+        //private static void Set_UDTAllAtomicDataTypes_Sync(string newTagValue, DataType type, OperationMode mode, LogixProject project, bool printout)
+        //{
+        //    var task = Set_UDTAllAtomicDataTypes_Async(newTagValue, type, mode, project, printout);
+        //    task.Wait();
+        //}
+
+        /// <summary>
+        /// Format the complex data type tag UDT_AllAtomicDataTypes from a ByteString to a nested string array.
+        /// </summary>
+        /// <param name="byteStringArray">
+        /// This input parameter is the Get_UDTAllAtomicDataTypes_Async method output or the Get_UDTAllAtomicDataTypes_Sync method output.<br/>
+        /// The ByteString array has the following format:<br/>
+        /// byteStringArray[0] = ByteString for online complex data type tag values<br/>
+        /// byteStringArray[1] = ByteString for offline complex data type tag values
+        /// </param>
+        /// <param name="printout">A boolean that, if True, prints the "before" and "after" values of the UDT_AllAtomicDataTypes tag member to the console.</param>
+        /// <returns>
+        /// A nested string array with the following format:<br/>
+        /// returnString[0][] = the names of the 14 members of the UDT_AllAtomicDataTypes complex data type tag in the order they were made in Studio 5000 Logix Designer<br/>
+        /// returnString[1][] = the online values of the 14 members of the UDT_AllAtomicDataTypes complex data type tag in the order they were made in Studio 5000 Logix Designer<br/>
+        /// returnString[2][] = the offline values of the 14 members of the UDT_AllAtomicDataTypes complex data type tag in the order they were made in Studio 5000 Logix Designer
+        /// <para>
+        /// Every element of the nested string array:<br/>
+        /// returnString[0][0] = UDT_AllAtomicDataTypes.ex_BOOL1 name<br/>
+        /// returnString[0][1] = UDT_AllAtomicDataTypes.ex_BOOL2 name<br/>
+        /// returnString[0][2] = UDT_AllAtomicDataTypes.ex_BOOL3 name<br/>
+        /// returnString[0][3] = UDT_AllAtomicDataTypes.ex_BOOL4 name<br/>
+        /// returnString[0][4] = UDT_AllAtomicDataTypes.ex_BOOL5 name<br/>
+        /// returnString[0][5] = UDT_AllAtomicDataTypes.ex_BOOL5 name<br/>
+        /// returnString[0][6] = UDT_AllAtomicDataTypes.ex_BOOL6 name<br/>
+        /// returnString[0][7] = UDT_AllAtomicDataTypes.ex_BOOL7 name<br/>
+        /// returnString[0][8] = UDT_AllAtomicDataTypes.ex_BOOL8 name<br/>
+        /// returnString[0][9] = UDT_AllAtomicDataTypes.ex_SINT name<br/>
+        /// returnString[0][10] = UDT_AllAtomicDataTypes.ex_INT name<br/>
+        /// returnString[0][11] = UDT_AllAtomicDataTypes.ex_DINT name<br/>
+        /// returnString[0][12] = UDT_AllAtomicDataTypes.ex_LINT name<br/>
+        /// returnString[0][13] = UDT_AllAtomicDataTypes.ex_REAL name<br/>
+        /// returnString[0][14] = UDT_AllAtomicDataTypes.ex_STRING name<br/>
+        /// returnString[1][0] = UDT_AllAtomicDataTypes.ex_BOOL1 online value<br/>
+        /// returnString[1][1] = UDT_AllAtomicDataTypes.ex_BOOL2 online value<br/>
+        /// returnString[1][2] = UDT_AllAtomicDataTypes.ex_BOOL3 online value<br/>
+        /// returnString[1][3] = UDT_AllAtomicDataTypes.ex_BOOL4 online value<br/>
+        /// returnString[1][4] = UDT_AllAtomicDataTypes.ex_BOOL5 online value<br/>
+        /// returnString[1][5] = UDT_AllAtomicDataTypes.ex_BOOL5 online value<br/>
+        /// returnString[1][6] = UDT_AllAtomicDataTypes.ex_BOOL6 online value<br/>
+        /// returnString[1][7] = UDT_AllAtomicDataTypes.ex_BOOL7 online value<br/>
+        /// returnString[1][8] = UDT_AllAtomicDataTypes.ex_BOOL8 online value<br/>
+        /// returnString[1][9] = UDT_AllAtomicDataTypes.ex_SINT online value<br/>
+        /// returnString[1][10] = UDT_AllAtomicDataTypes.ex_INT online value<br/>
+        /// returnString[1][11] = UDT_AllAtomicDataTypes.ex_DINT online value<br/>
+        /// returnString[1][12] = UDT_AllAtomicDataTypes.ex_LINT online value<br/>
+        /// returnString[1][13] = UDT_AllAtomicDataTypes.ex_REAL online value<br/>
+        /// returnString[1][14] = UDT_AllAtomicDataTypes.ex_STRING online value<br/>
+        /// returnString[1][15] = the number of bytes in element 0 of the input ByteString array (online values)<br/>
+        /// returnString[2][0] = UDT_AllAtomicDataTypes.ex_BOOL1 offline value<br/>
+        /// returnString[2][1] = UDT_AllAtomicDataTypes.ex_BOOL2 offline value<br/>
+        /// returnString[2][2] = UDT_AllAtomicDataTypes.ex_BOOL3 offline value<br/>
+        /// returnString[2][3] = UDT_AllAtomicDataTypes.ex_BOOL4 offline value<br/>
+        /// returnString[2][4] = UDT_AllAtomicDataTypes.ex_BOOL5 offline value<br/>
+        /// returnString[2][5] = UDT_AllAtomicDataTypes.ex_BOOL5 offline value<br/>
+        /// returnString[2][6] = UDT_AllAtomicDataTypes.ex_BOOL6 offline value<br/>
+        /// returnString[2][7] = UDT_AllAtomicDataTypes.ex_BOOL7 offline value<br/>
+        /// returnString[2][8] = UDT_AllAtomicDataTypes.ex_BOOL8 offline value<br/>
+        /// returnString[2][9] = UDT_AllAtomicDataTypes.ex_SINT offline value<br/>
+        /// returnString[2][10] = UDT_AllAtomicDataTypes.ex_INT offline value<br/>
+        /// returnString[2][11] = UDT_AllAtomicDataTypes.ex_DINT offline value<br/>
+        /// returnString[2][12] = UDT_AllAtomicDataTypes.ex_LINT offline value<br/>
+        /// returnString[2][13] = UDT_AllAtomicDataTypes.ex_REAL offline value<br/>
+        /// returnString[2][14] = UDT_AllAtomicDataTypes.ex_STRING offline value<br/>
+        /// returnString[2][15] = the number of bytes in element 1 of the input ByteString array (offline values)
+        /// </para>
+        /// </returns>
+        private static string[][] Format_UDTAllAtomicDataTypes(ByteString[] byteStringArray, bool printout)
+        {
+
+            string[][] returnString = new string[3][];
+            returnString[0] = new string[] { "UDT_AllAtomicDataTypes.ex_BOOL1", "UDT_AllAtomicDataTypes.ex_BOOL2", "UDT_AllAtomicDataTypes.ex_BOOL3",
+                "UDT_AllAtomicDataTypes.ex_BOOL4", "UDT_AllAtomicDataTypes.ex_BOOL5", "UDT_AllAtomicDataTypes.ex_BOOL6", "UDT_AllAtomicDataTypes.ex_BOOL7",
+                "UDT_AllAtomicDataTypes.ex_BOOL8", "UDT_AllAtomicDataTypes.ex_SINT", "UDT_AllAtomicDataTypes.ex_INT", "UDT_AllAtomicDataTypes.ex_DINT",
+                "UDT_AllAtomicDataTypes.ex_LINT", "UDT_AllAtomicDataTypes.ex_REAL", "UDT_AllAtomicDataTypes.ex_STRING" };
+            returnString[1] = new string[15];
+            returnString[2] = new string[15];
+
+            for (int i = 0; i < 2; i++)
+            {
+                var UDT_ByteArray = new byte[byteStringArray[0].Length];
+                for (int j = 0; j < UDT_ByteArray.Length; j++)
+                    UDT_ByteArray[j] = byteStringArray[i][j];
+
+                var ex_BOOLs = new byte[1];
+                Array.ConstrainedCopy(UDT_ByteArray, 0, ex_BOOLs, 0, 1);
+                string ex_BOOLS_binaryString = Convert.ToString(ex_BOOLs[0], 2).PadLeft(8, '0');
+                for (int j = 0; j < 8; j++)
+                    returnString[i + 1][j] = (Convert.ToString(ex_BOOLS_binaryString[7 - j]) == "1") ? "True" : "False";
+
+                var ex_SINT = new byte[1];
+                Array.ConstrainedCopy(UDT_ByteArray, 1, ex_SINT, 0, 1);
+                returnString[i + 1][8] = Convert.ToString(unchecked((sbyte)ex_SINT[0]));
+
+                var ex_INT = new byte[2];
+                Array.ConstrainedCopy(UDT_ByteArray, 2, ex_INT, 0, 2);
+                returnString[i + 1][9] = Convert.ToString(BitConverter.ToInt16(ex_INT));
+
+                var ex_DINT = new byte[4];
+                Array.ConstrainedCopy(UDT_ByteArray, 4, ex_DINT, 0, 4);
+                returnString[i + 1][10] = Convert.ToString(BitConverter.ToInt32(ex_DINT));
+
+                var ex_LINT = new byte[8];
+                Array.ConstrainedCopy(UDT_ByteArray, 8, ex_LINT, 0, 8);
+                returnString[i + 1][11] = Convert.ToString(BitConverter.ToInt64(ex_LINT));
+
+                var ex_REAL = new byte[4];
+                Array.ConstrainedCopy(UDT_ByteArray, 16, ex_REAL, 0, 4);
+                returnString[i + 1][12] = Convert.ToString(BitConverter.ToSingle(ex_REAL));
+
+                var ex_STRING = new byte[UDT_ByteArray.Length - 24];
+                Array.ConstrainedCopy(UDT_ByteArray, 24, ex_STRING, 0, UDT_ByteArray.Length - 24);
+                string string_result = Encoding.ASCII.GetString(ex_STRING).Replace("\0", "");
+                returnString[i + 1][13] = (string_result == "") ? "<empty_string>" : $"{string_result}";
+
+                returnString[i + 1][14] = Convert.ToString(byteStringArray[i].Length);
+            }
+
+            if (printout)
+            {
+                for (int i = 0; i < returnString[0].Length; i++)
+                {
+                    var online_message = $"online value: {returnString[1][i]}";
+                    var offline_message = $"offline value: {returnString[2][i]}";
+                    Console.WriteLine($"SUCCESS: " + returnString[0][i].PadRight(40, ' ') + online_message.PadRight(35, ' ') + offline_message.PadRight(35, ' '));
+                }
+            }
+
+            return returnString;
+        }
+        #endregion
+
+        #region METHODS: setting up Logix Echo emulated controller
+        /// <summary>
+        /// Run the Echo_Program script synchronously.<br/>
+        /// Script that sets up an emulated controller for CI/CD software in the loop (SIL) testing.<br/>
+        /// If no emulated controller based on the ACD file path yet exists, create one, and then return the communication path.<br/>
+        /// If an emulated controller based on the ACD file path exists, only return the communication path.
+        /// </summary>
+        /// <param name="acdFilePath">The file path to the Studio 5000 Logix Designer ACD file being tested.</param>
+        /// <returns>A string containing the communication path of the emulated controller that the ACD project file will go online with during testing.</returns>
+        private static string SetUpEmulatedController_Sync(string acdFilePath, string chassis_name, string controller_name)
+        {
+            var task = LogixEchoMethods.Main(acdFilePath, chassis_name, controller_name);
+            task.Wait();
+            return task.Result;
+        }
+        #endregion
+
+        #region METHODS: changing controller mode / download
+        /// <summary>
+        /// Asynchronously change the controller mode to either Program, Run, or Test mode.
+        /// </summary>
+        /// <param name="commPath">The controller communication path.</param>
+        /// <param name="mode">The controller mode to switch to.</param>
+        /// <param name="project">An instance of the LogixProject class.</param>
+        /// <returns>A Task that changes the controller mode.</returns>
+        private static async Task ChangeControllerMode_Async(string commPath, string mode, LogixProject project)
+        {
+            var requestedControllerMode = default(LogixProject.RequestedControllerMode);
+            if (mode == "Program")
+                requestedControllerMode = LogixProject.RequestedControllerMode.Program;
+            else if (mode == "Run")
+                requestedControllerMode = LogixProject.RequestedControllerMode.Run;
+            else if (mode == "Test")
+                requestedControllerMode = LogixProject.RequestedControllerMode.Test;
+            else
+                Console.WriteLine($"ERROR: {mode} is not supported.");
+
+            try
+            {
+                await project.SetCommunicationsPathAsync(commPath);
+            }
+            catch (LogixSdkException ex)
+            {
+                Console.WriteLine($"Unable to set commpath to {commPath}");
+                Console.WriteLine(ex.Message);
+            }
+
+            try
+            {
+                await project.ChangeControllerModeAsync(requestedControllerMode);
+            }
+            catch (LogixSdkException ex)
+            {
+                Console.WriteLine($"Unable to set mode. Requested mode was {mode}");
+                Console.WriteLine(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously download to the specified controller.
+        /// </summary>
+        /// <param name="commPath">The controller communication path.</param>
+        /// <param name="project">An instance of the LogixProject class.</param>
+        /// <returns>An Task that downloads to the specified controller.</returns>
+        private static async Task DownloadProject_Async(string commPath, LogixProject project)
+        {
+            try
+            {
+                await project.SetCommunicationsPathAsync(commPath);
+            }
+            catch (LogixSdkException ex)
+            {
+                Console.WriteLine($"Unable to set commpath to {commPath}");
+                Console.WriteLine(ex.Message);
+            }
+
+            try
+            {
+                LogixProject.ControllerMode controllerMode = await project.ReadControllerModeAsync();
+                if (controllerMode != LogixProject.ControllerMode.Program)
+                {
+                    Console.WriteLine($"Controller mode is {controllerMode}. Downloading is possible only if the controller is in 'Program' mode");
+                }
+            }
+            catch (LogixSdkException ex)
+            {
+                Console.WriteLine($"Unable to read ControllerMode");
+                Console.WriteLine(ex.Message);
+            }
+
+            try
+            {
+                await project.DownloadAsync();
+            }
+            catch (LogixSdkException ex)
+            {
+                Console.WriteLine($"Unable to download");
+                Console.WriteLine(ex.Message);
+            }
+
+            // Download modifies the project.
+            // Without saving, if used file will be opened again, commands which need correlation
+            // between program in the controller and opened project like LoadImageFromSDCard or StoreImageOnSDCard
+            // may not be able to succeed because project in the controller won't match opened project.
+            try
+            {
+                await project.SaveAsync();
+            }
+            catch (LogixSdkException ex)
+            {
+                Console.WriteLine($"Unable to save project");
+                Console.WriteLine(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Asynchronously get the current controller mode (FAULTED, PROGRAM, RUN, or TEST).
+        /// </summary>
+        /// <param name="commPath">The controller communication path.</param>
+        /// <param name="project">An instance of the LogixProject class.</param>
+        /// <returns>A Task that returns a string of the current controller mode.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown if the returned controller mode is not FAULTED, PROGRAM, RUN, or TEST.</exception>
+        private static async Task<string> ReadControllerMode_Async(string commPath, LogixProject project)
+        {
+            try
+            {
+                await project.SetCommunicationsPathAsync(commPath);
+            }
+            catch (LogixSdkException ex)
+            {
+                Console.WriteLine($"Unable to set commpath to {commPath}");
+                Console.WriteLine(ex.Message);
+            }
+
+            try
+            {
+                LogixProject.ControllerMode result = await project.ReadControllerModeAsync();
+                switch (result)
+                {
+                    case LogixProject.ControllerMode.Faulted:
+                        return "FAULTED";
+                    case LogixProject.ControllerMode.Program:
+                        return "PROGRAM";
+                    case LogixProject.ControllerMode.Run:
+                        return "RUN";
+                    case LogixProject.ControllerMode.Test:
+                        return "TEST";
+                    default:
+                        throw new ArgumentOutOfRangeException("Controller mode is unrecognized");
+                }
+            }
+            catch (LogixSdkException ex)
+            {
+                Console.WriteLine($"Unable to read controller mode");
+                Console.WriteLine(ex.Message);
+            }
+
+            return "";
+        }
+        #endregion
+    }
+}
