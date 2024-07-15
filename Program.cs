@@ -12,6 +12,7 @@ using Google.Protobuf;
 using LogixEcho_ClassLibrary;
 using OfficeOpenXml;
 using RockwellAutomation.LogixDesigner;
+using System.Collections;
 using System.Text;
 using static RockwellAutomation.LogixDesigner.LogixProject;
 using DataType = RockwellAutomation.LogixDesigner.LogixProject.DataType;
@@ -27,6 +28,8 @@ namespace UnitTesting
             public string DataType { get; set; }
             public string Scope { get; set; }
             public string Value { get; set; }
+            public int BytePosition { get; set; }
+            public int BoolPosition { get; set; }
         }
 
         static async Task Main()
@@ -39,11 +42,11 @@ namespace UnitTesting
 
 
             // Title Banner 
-            Console.WriteLine("\n  ======================================================================================================================  ");
-            Console.WriteLine("==========================================================================================================================");
+            Console.WriteLine("\n  ====================================================================================================================");
+            Console.WriteLine("========================================================================================================================");
             Console.WriteLine("                      UNIT TESTING | " + DateTime.Now + " " + TimeZoneInfo.Local);
-            Console.WriteLine("==========================================================================================================================");
-            Console.WriteLine("  ======================================================================================================================  \n\n");
+            Console.WriteLine("========================================================================================================================");
+            Console.WriteLine("  ====================================================================================================================");
 
             // From a string array to a list, store the name (including their path) for each excel workbook.
             // With the current implementation, each Excel Workbook tests a single Add-On Instruction.
@@ -86,14 +89,16 @@ namespace UnitTesting
                                                                                                               // string textFileReportPath = Path.Combine(textFileReportDirectory, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.txt");    // new text test report filename
                 string excelFileReportPath = Path.Combine(exampleTestReportsFolder_filePath, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.xlsx"); // new excel test report filename
 
+                Console.WriteLine("\n\n");
+
                 // Executed only once on the first AOI tested.
                 if (i == 0)
                 {
                     // Create an excel test report to be filled out during testing.
-                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] START setting up excel test report workbook...");
+                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START setting up excel test report workbook...");
                     CreateFormattedExcelFile(excelFileReportPath, acdFilePath, name_mostRecentCommit, email_mostRecentCommit,
                         jenkinsBuildNumber, jenkinsJobName, hash_mostRecentCommit, message_mostRecentCommit);
-                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE setting up excel test report workbook...\n---");
+                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE setting up excel test report workbook...\n---");
 
                     // Check the test-reports folder and if over the specified file number limit, delete the oldest test files.
                     Console.WriteLine($"[{DateTime.Now.ToString("T")}] START checking test-reports folder...");
@@ -139,9 +144,9 @@ namespace UnitTesting
                 // ShowDataPoints(testDataPoint);
 
                 // Dictionary<string, string> aoiParameters_dictionary = GetAOIParameters(orderedFiles[i].FullName);
-                string fullTagPath = aoiTagScope + $"[@Name='{aoiTagName}']";
-                Console.WriteLine("current fullTagPath: " + fullTagPath);
-                ByteString udtoraoi_byteString = Get_UDTorAOI_ByteString_Sync(fullTagPath, myProject, OperationMode.Online);
+                // string fullTagPath = aoiTagScope + $"[@Name='{aoiTagName}']";
+                Console.WriteLine("current fullTagPath: " + aoiTagScope);
+                ByteString udtoraoi_byteString = Get_UDTorAOI_ByteString_Sync(aoiTagScope, myProject, OperationMode.Online);
                 //byte[] udtoraoi_byteArray = udtoraoi_byteString.ToByteArray();
                 //StringBuilder udtoraoi_binaryString = new StringBuilder();
                 //foreach (byte b in udtoraoi_byteArray)
@@ -152,10 +157,29 @@ namespace UnitTesting
                 //string udtoraoi_String = udtoraoi_binaryString.ToString();
                 TagData[] tagdata_UDTorAOI = Get_UDTorAOI(testDataPoint, udtoraoi_byteString, true);
                 ShowDataPoints(tagdata_UDTorAOI);
+
+                byte[] TESTBYTEARRAY = udtoraoi_byteString.ToByteArray();
+                byte[] bools_bytearray2 = new byte[4];
+                Array.ConstrainedCopy(TESTBYTEARRAY, 0, bools_bytearray2, 0, 4);
+                var bitArray = new BitArray(bools_bytearray2);
+                Console.WriteLine("BIT ARRAY: " + bitArray.ToString());
+                int testtesttest = 0;
+                foreach (Object obj in bitArray)
+                {
+                    Console.WriteLine(testtesttest + " | " + obj);
+                    testtesttest++;
+                }
+                bitArray[0] = false;
+                testtesttest = 0;
+                foreach (Object obj in bitArray)
+                {
+                    Console.WriteLine(testtesttest + " | " + obj);
+                    testtesttest++;
+                }
                 //Console.WriteLine("AOI binary string: \n" + udtoraoi_String);
                 //Console.WriteLine("AOI # of bytes: " + udtoraoi_byteArray.Length + "\n\n");
 
-                await myProject.GoOfflineAsync();
+                //await myProject.GoOfflineAsync();
             }
 
 
@@ -248,12 +272,13 @@ namespace UnitTesting
         private static void ShowDataPoints(TagData[] dataPointsArray)
         {
             int arraySize = dataPointsArray.Length;
+            Console.WriteLine("arraySize: " + arraySize);
+
             for (int i = 0; i < arraySize; i++)
             {
-                Console.WriteLine("Name: " + dataPointsArray[i].Name);
-                Console.WriteLine("Data Type: " + dataPointsArray[i].DataType);
-                Console.WriteLine("Scope: " + dataPointsArray[i].Scope);
-                Console.WriteLine("Value: " + dataPointsArray[i].Value);
+                Console.WriteLine($"Name: {dataPointsArray[i].Name,-20} | Data Type: {dataPointsArray[i].DataType,-9} | " +
+                    $"Scope: {dataPointsArray[i].Scope,-7} | Value: {dataPointsArray[i].Value,-20} " +
+                    $"| Byte Position: {dataPointsArray[i].BytePosition,-3} | Bool Position: {dataPointsArray[i].BoolPosition}");
             }
         }
 
@@ -863,51 +888,172 @@ namespace UnitTesting
             return sb.ToString();
         }
 
-        //private static async Task Set_UDTorAOI(Dictionary<string, string> input_dictionary, string tagPath, OperationMode mode, string tagValue, DataType type, LogixProject project)
-        //{
-        //    Console.WriteLine("Set value");
+        private static async Task Set_UDTorAOI(string newTagValue, string tagPath, string tagName, OperationMode mode, TagData[] input_TagDataArray, LogixProject project)
+        {
+            Console.WriteLine("Set values...");
+            //TagData[] old_TagData = input_TagData;
+            //TagData[] new_TagData = old_TagData;
+            ByteString old_ByteString = Get_UDTorAOI_ByteString_Sync(tagPath, project, mode);
+            ByteString new_ByteString = old_ByteString;
+            byte[] new_byteArray = new_ByteString.ToByteArray();
+            int arraySize = input_TagDataArray.Length;
+
+            for (int j = 0; j < arraySize; j++)
+            {
+                // Search the TagData[] array to get the associated newTagValue data needed.
+                if (input_TagDataArray[j].Name == tagName)
+                {
+                    DataType dataType = Get_DataType(input_TagDataArray[j].DataType);
+                    int bytePosition = input_TagDataArray[j].BytePosition;
+
+                    if (dataType == DataType.BOOL)
+                    {
+                        byte[] bools_byteArray = new byte[4];
+                        Array.ConstrainedCopy(new_byteArray, bytePosition, bools_byteArray, 0, 4);
+                        var bitArray = new BitArray(bools_byteArray);
+
+                        int boolPosition = 31 - input_TagDataArray[j].BoolPosition;
+                        bool bool_newTagValue = Convert.ToBoolean(newTagValue);
+                        bitArray[boolPosition] = bool_newTagValue;
+                        bitArray.CopyTo(bools_byteArray, 0);
 
 
+                        for (int i = 0; i < 4; ++i)
+                            new_byteArray[i + bytePosition] = bools_byteArray[i];
 
-        //    await project.SetTagValueAsync(tagPath, mode, tagValue, type);
-        //}
 
-        private static TagData[] Get_UDTorAOI(TagData[] inputDataPointArray, ByteString input_AOIorUDT_ByteString, bool printout)
+                        Console.WriteLine(bitArray.ToString());
+
+                        //if ((boolPosition >= 23) && (boolPosition <= 31))
+                        //{
+                        //    int bitIndex = boolPosition - 24;
+                        //    // new_byteArray[bytePosition] 
+
+                        //}
+
+                        //byte[] TESTBYTEARRAY = udtoraoi_byteString.ToByteArray();
+                        //byte[] bools_bytearray2 = new byte[4];
+                        //Array.ConstrainedCopy(TESTBYTEARRAY, 0, bools_bytearray2, 0, 4);
+                        //var bitArray = new BitArray(bools_bytearray2);
+                        //Console.WriteLine("BIT ARRAY: " + bitArray.ToString());
+                        //int testtesttest = 0;
+                        //foreach (Object obj in bitArray)
+                        //{
+                        //    Console.WriteLine(testtesttest + " | {0,8}", obj);
+                        //    testtesttest++;
+                        //}
+                        new_byteArray[bytePosition] = Convert.ToByte(newTagValue, 2);
+                    }
+
+                    else if (dataType == DataType.SINT)
+                    {
+                        string sint_string = Convert.ToString(long.Parse(newTagValue), 2);
+                        sint_string = sint_string.Substring(sint_string.Length - 8);
+                        new_byteArray[bytePosition] = Convert.ToByte(sint_string, 2);
+                    }
+
+                    else if (dataType == DataType.INT)
+                    {
+                        byte[] int_byteArray = BitConverter.GetBytes(int.Parse(newTagValue));
+                        for (int i = 0; i < 2; ++i)
+                            new_byteArray[i + bytePosition] = int_byteArray[i];
+                    }
+
+                    else if (dataType == DataType.DINT)
+                    {
+                        byte[] dint_byteArray = BitConverter.GetBytes(long.Parse(newTagValue));
+                        for (int i = 0; i < 4; ++i)
+                            new_byteArray[i + bytePosition] = dint_byteArray[i];
+                    }
+
+                    else if (dataType == DataType.LINT)
+                    {
+                        byte[] lint_byteArray = BitConverter.GetBytes(long.Parse(newTagValue));
+                        for (int i = 0; i < 8; ++i)
+                            new_byteArray[i + bytePosition] = lint_byteArray[i];
+                    }
+
+                    else if (dataType == DataType.REAL)
+                    {
+                        byte[] real_byteArray = BitConverter.GetBytes(float.Parse(newTagValue));
+                        for (int i = 0; i < 4; ++i)
+                            new_byteArray[i + bytePosition] = real_byteArray[i];
+                    }
+                }
+            }
+
+            // await project.SetTagValueAsync(newTagValue, mode, newTagValue, DataType.BYTE_ARRAY);
+        }
+
+        private static DataType Get_DataType(string dataType)
+        {
+            DataType type;
+            switch (dataType)
+            {
+                case "BOOL":
+                    type = DataType.BOOL;
+                    break;
+                case "SINT":
+                    type = DataType.SINT;
+                    break;
+                case "INT":
+                    type = DataType.INT;
+                    break;
+                case "DINT":
+                    type = DataType.DINT;
+                    break;
+                case "REAL":
+                    type = DataType.REAL;
+                    break;
+                case "LINT":
+                    type = DataType.LINT;
+                    break;
+                default:
+                    Console.WriteLine("Error in Get_DataType method: data type not recognized!");
+                    throw new ArgumentException();
+            }
+            return type;
+        }
+
+        private static TagData[] Get_UDTorAOI(TagData[] input_TagDataArray, ByteString input_AOIorUDT_ByteString, bool printout)
         {
             // initialize values needed for this method
-            TagData[] outputDataPointArray = inputDataPointArray;
+            TagData[] output_TagDataArray = input_TagDataArray;
             byte[] input_bytearray = input_AOIorUDT_ByteString.ToByteArray();
-            int inputposition_inbytearray = 0;
-            int boolposition_inbytearray = 0;
+            int byteStartPosition_InputByteArray = 0;
+            int boolStartPosition_InputByteArray = 0;
             int boolCount = 0;
 
             // loop through each of the data types provided in the excel sheet
-            int arraySize = inputDataPointArray.Length;
+            int arraySize = input_TagDataArray.Length;
             for (int i = 0; i < arraySize; i++)
             {
                 //Console.WriteLine("Name: " + inputDataPointArray[i].Name);
                 //Console.WriteLine("Data Type: " + inputDataPointArray[i].DataType);
                 //Console.WriteLine("Scope: " + inputDataPointArray[i].Scope);
 
-                string datatype_TagData = inputDataPointArray[i].DataType;
+                string datatype_TagData = input_TagDataArray[i].DataType;
 
                 // Console.WriteLine("START WITH CURRENT DATATYPE: " + name_TagData + " | inputposition_inbytearray: " + inputposition_inbytearray);
+
 
                 if (datatype_TagData == "BOOL")
                 {
                     // Update the "boolean host member" location of the input byte array that is being checked every 32 booleans.
                     if (((boolCount % 32 == 1) && (boolCount > 1)) || (boolCount == 0))
                     {
-                        boolposition_inbytearray = inputposition_inbytearray;
-                        inputposition_inbytearray += 4;
+                        boolStartPosition_InputByteArray = byteStartPosition_InputByteArray;
+                        byteStartPosition_InputByteArray += 4;
                     }
 
                     byte[] bools_bytearray = new byte[4];
-                    Array.ConstrainedCopy(input_bytearray, boolposition_inbytearray, bools_bytearray, 0, 4);
+                    Array.ConstrainedCopy(input_bytearray, boolStartPosition_InputByteArray, bools_bytearray, 0, 4);
 
                     string bools_string = ReverseByteArrayToString(bools_bytearray);
 
-                    outputDataPointArray[i].Value = bools_string[31 - boolCount].ToString();
+                    output_TagDataArray[i].Value = bools_string[31 - boolCount].ToString();
+                    output_TagDataArray[i].BytePosition = boolStartPosition_InputByteArray;
+                    output_TagDataArray[i].BoolPosition = 31 - boolCount;
 
                     boolCount++;
                 }
@@ -915,72 +1061,77 @@ namespace UnitTesting
                 else if (datatype_TagData == "SINT")
                 {
                     byte[] sint_bytearray = new byte[1];
-                    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, sint_bytearray, 0, 1);
+                    Array.ConstrainedCopy(input_bytearray, byteStartPosition_InputByteArray, sint_bytearray, 0, 1);
                     string sint_string = Convert.ToString(unchecked((sbyte)sint_bytearray[0]));
-                    outputDataPointArray[i].Value = sint_string;
-                    inputposition_inbytearray += 1;
+                    output_TagDataArray[i].Value = sint_string;
+                    output_TagDataArray[i].BytePosition = byteStartPosition_InputByteArray;
+                    byteStartPosition_InputByteArray += 1;
                 }
 
                 else if (datatype_TagData == "INT")
                 {
-                    if ((inputposition_inbytearray % 2) > 0)
-                        inputposition_inbytearray += 2 - (inputposition_inbytearray % 2);
+                    if ((byteStartPosition_InputByteArray % 2) > 0)
+                        byteStartPosition_InputByteArray += 2 - (byteStartPosition_InputByteArray % 2);
 
                     byte[] int_bytearray = new byte[2];
-                    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, int_bytearray, 0, 2);
+                    Array.ConstrainedCopy(input_bytearray, byteStartPosition_InputByteArray, int_bytearray, 0, 2);
                     string int_string = Convert.ToString(BitConverter.ToInt16(int_bytearray));
-                    outputDataPointArray[i].Value = int_string;
-                    //intCount++;
-                    inputposition_inbytearray += 2;
+                    output_TagDataArray[i].Value = int_string;
+                    output_TagDataArray[i].BytePosition = byteStartPosition_InputByteArray;
+                    byteStartPosition_InputByteArray += 2;
                 }
 
                 else if (datatype_TagData == "DINT")
                 {
-                    if ((inputposition_inbytearray % 4) > 0)
-                        inputposition_inbytearray += 4 - (inputposition_inbytearray % 4);
+                    if ((byteStartPosition_InputByteArray % 4) > 0)
+                        byteStartPosition_InputByteArray += 4 - (byteStartPosition_InputByteArray % 4);
 
                     byte[] dint_bytearray = new byte[4];
-                    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, dint_bytearray, 0, 4);
+                    Array.ConstrainedCopy(input_bytearray, byteStartPosition_InputByteArray, dint_bytearray, 0, 4);
                     string dint_string = Convert.ToString(BitConverter.ToInt32(dint_bytearray));
-                    outputDataPointArray[i].Value = dint_string;
-                    inputposition_inbytearray += 4;
+                    output_TagDataArray[i].Value = dint_string;
+                    output_TagDataArray[i].BytePosition = byteStartPosition_InputByteArray;
+                    byteStartPosition_InputByteArray += 4;
                 }
 
                 else if (datatype_TagData == "LINT")
                 {
-                    if ((inputposition_inbytearray % 8) > 0)
-                        inputposition_inbytearray += 8 - (inputposition_inbytearray % 8);
+                    if ((byteStartPosition_InputByteArray % 8) > 0)
+                        byteStartPosition_InputByteArray += 8 - (byteStartPosition_InputByteArray % 8);
 
                     byte[] lint_bytearray = new byte[8];
-                    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, lint_bytearray, 0, 8);
+                    Array.ConstrainedCopy(input_bytearray, byteStartPosition_InputByteArray, lint_bytearray, 0, 8);
                     string lint_string = Convert.ToString(BitConverter.ToInt64(lint_bytearray));
-                    outputDataPointArray[i].Value = lint_string;
-                    inputposition_inbytearray += 8;
+                    output_TagDataArray[i].Value = lint_string;
+                    output_TagDataArray[i].BytePosition = byteStartPosition_InputByteArray;
+                    byteStartPosition_InputByteArray += 8;
                 }
 
                 else if (datatype_TagData == "REAL")
                 {
-                    if ((inputposition_inbytearray % 4) > 0)
-                        inputposition_inbytearray += 4 - (inputposition_inbytearray % 4);
+                    if ((byteStartPosition_InputByteArray % 4) > 0)
+                        byteStartPosition_InputByteArray += 4 - (byteStartPosition_InputByteArray % 4);
 
                     byte[] real_bytearray = new byte[4];
-                    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, real_bytearray, 0, 4);
+                    Array.ConstrainedCopy(input_bytearray, byteStartPosition_InputByteArray, real_bytearray, 0, 4);
                     string real_string = Convert.ToString(BitConverter.ToSingle(real_bytearray));
-                    outputDataPointArray[i].Value = real_string;
-                    inputposition_inbytearray += 4;
+                    output_TagDataArray[i].Value = real_string;
+                    output_TagDataArray[i].BytePosition = byteStartPosition_InputByteArray;
+                    byteStartPosition_InputByteArray += 4;
                 }
 
-                //else if (datatype_TagData == "STRING")
-                //{
-                //    byte[] real_bytearray = new byte[24];
-                //    Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, real_bytearray, 0, 4);
-                //    string real_string = Convert.ToString(BitConverter.ToSingle(real_bytearray));
-                //    outputDataPointArray[i].Value = real_string;
-                //    inputposition_inbytearray += 4;
-                //}
+                else
+                {
+                    //byte[] real_bytearray = new byte[24];
+                    //Array.ConstrainedCopy(input_bytearray, inputposition_inbytearray, real_bytearray, 0, 4);
+                    //string real_string = Convert.ToString(BitConverter.ToSingle(real_bytearray));
+                    //outputDataPointArray[i].Value = real_string;
+                    //inputposition_inbytearray += 4;
+                    output_TagDataArray[i].BytePosition = byteStartPosition_InputByteArray;
+                }
             }
 
-            return outputDataPointArray;
+            return output_TagDataArray;
         }
 
         /// <summary>
