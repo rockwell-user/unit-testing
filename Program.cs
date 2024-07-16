@@ -50,19 +50,19 @@ namespace UnitTesting
 
             // From a string array to a list, store the name (including their path) for each excel workbook.
             // With the current implementation, each Excel Workbook tests a single Add-On Instruction.
-            string[] all_files = Directory.GetFiles(unitTestExcelWorkbooks_folderPath);
-            List<FileInfo> orderedFiles = all_files.Select(f => new FileInfo(f)).OrderBy(f => f.CreationTime).ToList();
+            string[] excelFiles = Directory.GetFiles(unitTestExcelWorkbooks_folderPath);
+            List<FileInfo> orderedExcelFiles = [.. excelFiles.Select(f => new FileInfo(f)).OrderBy(f => f.CreationTime)];
 
-            // Parameters from the excel sheet that determine the 
+            // Parameters from the excel sheet that determine the test to be run. 
             string controllerName = "";
             string acdFilePath = "";
             string aoiTagName = "";
             string aoiTagScope = "";
 
             // Increment through each Excel Workbook in the specified folder.
-            for (int i = 0; i < (orderedFiles.Count); i++)
+            for (int i = 0; i < (orderedExcelFiles.Count); i++)
             {
-                var currentExcelUnitTest_filePath = orderedFiles[i].FullName;
+                var currentExcelUnitTest_filePath = orderedExcelFiles[i].FullName;
                 FileInfo existingFile = new FileInfo(currentExcelUnitTest_filePath);
                 using (ExcelPackage package = new ExcelPackage(existingFile))
                 {
@@ -76,7 +76,7 @@ namespace UnitTesting
 
 
                 //string githubPath = @"C:\examplefolder";                                           // 1st incoming argument = GitHub folder path
-                string acdFilename = "CICD_test.ACD";                                          // 2nd incoming argument = Logix Designer ACD filename
+                //string acdFilename = "CICD_test.ACD";                                          // 2nd incoming argument = Logix Designer ACD filename
                 string name_mostRecentCommit = "example name";                                // 3rd incoming argument = name of person assocatied with most recent git commit
                 string email_mostRecentCommit = "example email";                               // 4th incoming argument = email of person associated with most recent git commit
                 string message_mostRecentCommit = "example commmit message";                             // 5th incoming argument = message provided in the most recent git commit
@@ -111,73 +111,110 @@ namespace UnitTesting
                 string commPath = SetUpEmulatedController_Sync(acdFilePath, "UnitTest_Chassis", controllerName);
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE setting up Factory Talk Logix Echo emulated controller\n---");
 
+                //// Create a new ACD project file.
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START creating ACD file...");
+                //// string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\", DateTime.Now.ToString("yyyyMMddHHmmss") + "_AOIunittest.ACD");
+                //string acdPath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\20240716141455_AOIunittest.ACD";
+                //uint majorRevision = 36;
+                //string processorTypeName = "1756-L85E";
+                //string controllerName2 = "UnitTest_Controller";
+                //// await CreateNewProjectAsync(acdPath, majorRevision, processorTypeName, controllerName2);
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS creating ACD file\n---");
+
+
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START uploading ACD file...");
+                string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\", DateTime.Now.ToString("yyyyMMddHHmmss") + "_AOI_UnitTest.ACD");
+                await LogixProject.UploadToNewProjectAsync(acdPath, commPath);
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS uploading ACD file\n---");
+
+
+
                 // Open the ACD project file and store the reference as myProject.
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] START opening ACD file...");
-                LogixProject myProject = await LogixProject.OpenLogixProjectAsync(acdFilePath);
+                LogixProject project = await LogixProject.OpenLogixProjectAsync(acdPath);
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS opening ACD file\n---");
+
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START importing AOI.L5X...");
+                //string xPath = @"Controller/Programs/Program[@Name='P00_AOI_Testing']";
+                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
+                string xPath = @"Controller";
+                //string xPath = @"Controller/Tasks/Task[@Name='T00_AOI_Testing']";
+                //string xPath = @"Controller/Programs"; THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
+                //string xPath = @"Controller/Tasks/Task[@Name='T00_AOI_Testing']";
+                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\P00_AOI_Testing_Program.L5X";
+                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\20240716140136_AOIunittest.L5X";
+                string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
+                await project.PartialImportFromXmlFileAsync(xPath, filePath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+                await project.SaveAsync();
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS importing AOI.L5X\n---");
 
                 // Change controller mode to program & verify.
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] START changing controller to PROGRAM...");
-                ChangeControllerMode_Async(commPath, "Program", myProject).GetAwaiter().GetResult();
-                if (ReadControllerMode_Async(commPath, myProject).GetAwaiter().GetResult() == "PROGRAM")
+                ChangeControllerMode_Async(commPath, "Program", project).GetAwaiter().GetResult();
+                if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "PROGRAM")
                     Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS changing controller to PROGRAM\n---");
                 else
                     Console.WriteLine($"[{DateTime.Now.ToString("T")}] FAILURE changing controller to PROGRAM\n---");
 
                 // Download project.
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] START downloading ACD file...");
-                DownloadProject_Async(commPath, myProject).GetAwaiter().GetResult();
+                DownloadProject_Async(commPath, project).GetAwaiter().GetResult();
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS downloading ACD file\n---");
 
                 // Change controller mode to run.
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] START Changing controller to RUN...");
-                ChangeControllerMode_Async(commPath, "Run", myProject).GetAwaiter().GetResult();
-                if (ReadControllerMode_Async(commPath, myProject).GetAwaiter().GetResult() == "RUN")
+                ChangeControllerMode_Async(commPath, "Run", project).GetAwaiter().GetResult();
+                if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "RUN")
                     Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS changing controller to RUN\n---");
                 else
                     Console.WriteLine($"[{DateTime.Now.ToString("T")}] FAILURE changing controller to RUN\n---");
 
 
+
+                //// Open the ACD project file and store the reference as myProject.
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START opening ACD file...");
+                //LogixProject myProject = await LogixProject.OpenLogixProjectAsync(acdFilePath);
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS opening ACD file\n---");
+
+                //// Change controller mode to program & verify.
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START changing controller to PROGRAM...");
+                //ChangeControllerMode_Async(commPath, "Program", myProject).GetAwaiter().GetResult();
+                //if (ReadControllerMode_Async(commPath, myProject).GetAwaiter().GetResult() == "PROGRAM")
+                //    Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS changing controller to PROGRAM\n---");
+                //else
+                //    Console.WriteLine($"[{DateTime.Now.ToString("T")}] FAILURE changing controller to PROGRAM\n---");
+
+                //// Download project.
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START downloading ACD file...");
+                //DownloadProject_Async(commPath, myProject).GetAwaiter().GetResult();
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS downloading ACD file\n---");
+
+                //// Change controller mode to run.
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START Changing controller to RUN...");
+                //ChangeControllerMode_Async(commPath, "Run", myProject).GetAwaiter().GetResult();
+                //if (ReadControllerMode_Async(commPath, myProject).GetAwaiter().GetResult() == "RUN")
+                //    Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS changing controller to RUN\n---");
+                //else
+                //    Console.WriteLine($"[{DateTime.Now.ToString("T")}] FAILURE changing controller to RUN\n---");
+
+
                 // ---------------------------------------------------------------------------------------------------------------------------
 
-                TagData[] testDataPoint = GetAOIParameters(orderedFiles[i].FullName);
-                // ShowDataPoints(testDataPoint);
+                TagData[] testDataPoint = GetAOIParameters(currentExcelUnitTest_filePath);
 
-                // Dictionary<string, string> aoiParameters_dictionary = GetAOIParameters(orderedFiles[i].FullName);
-                // string fullTagPath = aoiTagScope + $"[@Name='{aoiTagName}']";
                 Console.WriteLine("current fullTagPath: " + aoiTagScope);
-                ByteString udtoraoi_byteString = Get_UDTorAOI_ByteString_Sync(aoiTagScope, myProject, OperationMode.Online);
-                //byte[] udtoraoi_byteArray = udtoraoi_byteString.ToByteArray();
-                //StringBuilder udtoraoi_binaryString = new StringBuilder();
-                //foreach (byte b in udtoraoi_byteArray)
-                //{
-                //    udtoraoi_binaryString.Append(Convert.ToString(b, 2).PadLeft(8, '0'));
-                //    udtoraoi_binaryString.Append(" ");
-                //}
-                //string udtoraoi_String = udtoraoi_binaryString.ToString();
+                ByteString udtoraoi_byteString = Get_UDTorAOI_ByteString_Sync(aoiTagScope, project, OperationMode.Online);
+
                 TagData[] tagdata_UDTorAOI = Get_UDTorAOI(testDataPoint, udtoraoi_byteString, true);
                 ShowDataPoints(tagdata_UDTorAOI);
 
-                byte[] TESTBYTEARRAY = udtoraoi_byteString.ToByteArray();
-                byte[] bools_bytearray2 = new byte[4];
-                Array.ConstrainedCopy(TESTBYTEARRAY, 0, bools_bytearray2, 0, 4);
-                var bitArray = new BitArray(bools_bytearray2);
-                Console.WriteLine("BIT ARRAY: " + bitArray.ToString());
-                int testtesttest = 0;
-                foreach (Object obj in bitArray)
-                {
-                    Console.WriteLine(testtesttest + " | " + obj);
-                    testtesttest++;
-                }
-                bitArray[0] = false;
-                testtesttest = 0;
-                foreach (Object obj in bitArray)
-                {
-                    Console.WriteLine(testtesttest + " | " + obj);
-                    testtesttest++;
-                }
-                //Console.WriteLine("AOI binary string: \n" + udtoraoi_String);
-                //Console.WriteLine("AOI # of bytes: " + udtoraoi_byteArray.Length + "\n\n");
+                int testcases = GetPopulatedColumnCount(currentExcelUnitTest_filePath, 20) - 3;
+                Console.WriteLine("testcases: " + testcases);
+                //await SetSingleValue_UDTorAOI("40", aoiTagScope, "Temperature", OperationMode.Online, tagdata_UDTorAOI, myProject);
+                //await SetSingleValue_UDTorAOI("0", aoiTagScope, "isFahrenheit", OperationMode.Online, tagdata_UDTorAOI, myProject);
+
+                ShowDataPoints(Get_UDTorAOI(testDataPoint, Get_UDTorAOI_ByteString_Sync(aoiTagScope, project, OperationMode.Online), true));
+
 
                 //await myProject.GoOfflineAsync();
             }
@@ -249,25 +286,6 @@ namespace UnitTesting
                 }
             }
         }
-
-        //private static Dictionary<string, string> GetAOIParameters(string filePath)
-        //{
-        //    Dictionary<string, string> returnAOIparameters = new Dictionary<string, string>();
-        //    FileInfo existingFile = new FileInfo(filePath);
-        //    using (ExcelPackage package = new ExcelPackage(existingFile))
-        //    {
-        //        int paramCount = GetPopulatedRowCount(filePath, 2) - 6;
-        //        //get the first worksheet in the workbook
-        //        ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
-        //        for (int row = 0; row < paramCount; row++)
-        //        {
-        //            var paramName = worksheet.Cells[row + 20, 2].Value;
-        //            var paramDataType = worksheet.Cells[row + 20, 3].Value;
-        //            returnAOIparameters[paramName.ToString()!.Trim()] = paramDataType.ToString()!.Trim();
-        //        }
-        //    }
-        //    return returnAOIparameters;
-        //}
 
         private static void ShowDataPoints(TagData[] dataPointsArray)
         {
@@ -863,19 +881,6 @@ namespace UnitTesting
             return task.Result;
         }
 
-
-        private static int CountNumberOfOccurences(Dictionary<string, string> input_dictionary, string input_datatype)
-        {
-            int return_NumberOfDataTypes = 0;
-
-            foreach (var val in input_dictionary)
-            {
-                if (val.Value == input_datatype)
-                    return_NumberOfDataTypes++;
-            }
-            return return_NumberOfDataTypes;
-        }
-
         private static string ReverseByteArrayToString(byte[] byteArray)
         {
             StringBuilder sb = new StringBuilder();
@@ -888,23 +893,39 @@ namespace UnitTesting
             return sb.ToString();
         }
 
-        private static async Task SetSingleValue_UDTorAOI(string newTagValue, string tagPath, string tagName, OperationMode mode, TagData[] input_TagDataArray, LogixProject project)
+        /// <summary>
+        /// Custom conversion of a string to its boolean equivalent.
+        /// </summary>
+        /// <param name="val">String input to be converted to a boolean equivalent.</param>
+        /// <returns>Any uppercase/lowercase combination of "TRUE" or "YES" or "1" returns boolean true. All other inputs return boolean false.</returns>
+        public static bool ToBoolean(string val)
         {
-            Console.WriteLine("Set values...");
-            //TagData[] old_TagData = input_TagData;
-            //TagData[] new_TagData = old_TagData;
-            ByteString old_ByteString = Get_UDTorAOI_ByteString_Sync(tagPath, project, mode);
-            ByteString new_ByteString = old_ByteString;
-            byte[] new_byteArray = new_ByteString.ToByteArray();
+            switch (val.Trim().ToUpper())
+            {
+                case "TRUE":
+                case "YES":
+                case "1":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static async Task SetSingleValue_UDTorAOI(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, TagData[] input_TagDataArray, LogixProject project)
+        {
+            ByteString input_ByteString = Get_UDTorAOI_ByteString_Sync(aoiTagPath, project, mode);
+            byte[] new_byteArray = input_ByteString.ToByteArray();
             int arraySize = input_TagDataArray.Length;
+            string oldParameterValue = "";
 
             for (int j = 0; j < arraySize; j++)
             {
                 // Search the TagData[] array to get the associated newTagValue data needed.
-                if (input_TagDataArray[j].Name == tagName)
+                if (input_TagDataArray[j].Name == parameterName)
                 {
                     DataType dataType = Get_DataType(input_TagDataArray[j].DataType);
                     int bytePosition = input_TagDataArray[j].BytePosition;
+                    oldParameterValue = input_TagDataArray[j].Value;
 
                     if (dataType == DataType.BOOL)
                     {
@@ -913,7 +934,7 @@ namespace UnitTesting
                         var bitArray = new BitArray(bools_byteArray);
 
                         int boolPosition = 31 - input_TagDataArray[j].BoolPosition;
-                        bool bool_newTagValue = Convert.ToBoolean(newTagValue);
+                        bool bool_newTagValue = ToBoolean(newParameterValue);
                         bitArray[boolPosition] = bool_newTagValue;
                         bitArray.CopyTo(bools_byteArray, 0);
 
@@ -924,42 +945,47 @@ namespace UnitTesting
 
                     else if (dataType == DataType.SINT)
                     {
-                        string sint_string = Convert.ToString(long.Parse(newTagValue), 2);
+                        string sint_string = Convert.ToString(long.Parse(newParameterValue), 2);
                         sint_string = sint_string.Substring(sint_string.Length - 8);
                         new_byteArray[bytePosition] = Convert.ToByte(sint_string, 2);
                     }
 
                     else if (dataType == DataType.INT)
                     {
-                        byte[] int_byteArray = BitConverter.GetBytes(int.Parse(newTagValue));
+                        byte[] int_byteArray = BitConverter.GetBytes(int.Parse(newParameterValue));
                         for (int i = 0; i < 2; ++i)
                             new_byteArray[i + bytePosition] = int_byteArray[i];
                     }
 
                     else if (dataType == DataType.DINT)
                     {
-                        byte[] dint_byteArray = BitConverter.GetBytes(long.Parse(newTagValue));
+                        byte[] dint_byteArray = BitConverter.GetBytes(long.Parse(newParameterValue));
                         for (int i = 0; i < 4; ++i)
                             new_byteArray[i + bytePosition] = dint_byteArray[i];
                     }
 
                     else if (dataType == DataType.LINT)
                     {
-                        byte[] lint_byteArray = BitConverter.GetBytes(long.Parse(newTagValue));
+                        byte[] lint_byteArray = BitConverter.GetBytes(long.Parse(newParameterValue));
                         for (int i = 0; i < 8; ++i)
                             new_byteArray[i + bytePosition] = lint_byteArray[i];
                     }
 
                     else if (dataType == DataType.REAL)
                     {
-                        byte[] real_byteArray = BitConverter.GetBytes(float.Parse(newTagValue));
+                        byte[] real_byteArray = BitConverter.GetBytes(float.Parse(newParameterValue));
                         for (int i = 0; i < 4; ++i)
                             new_byteArray[i + bytePosition] = real_byteArray[i];
+                    }
+                    else
+                    {
+                        Console.WriteLine("ERROR: Data type not supported.");
                     }
                 }
             }
 
-            await project.SetTagValueAsync(newTagValue, mode, new_byteArray, DataType.BYTE_ARRAY);
+            await project.SetTagValueAsync(aoiTagPath, mode, new_byteArray, DataType.BYTE_ARRAY);
+            Console.WriteLine($"SUCCESS: {parameterName,-14} | {oldParameterValue,20} -> {newParameterValue,-20}");
         }
 
         private static DataType Get_DataType(string dataType)
@@ -1005,10 +1031,6 @@ namespace UnitTesting
             int arraySize = input_TagDataArray.Length;
             for (int i = 0; i < arraySize; i++)
             {
-                //Console.WriteLine("Name: " + inputDataPointArray[i].Name);
-                //Console.WriteLine("Data Type: " + inputDataPointArray[i].DataType);
-                //Console.WriteLine("Scope: " + inputDataPointArray[i].Scope);
-
                 string datatype_TagData = input_TagDataArray[i].DataType;
 
                 // Console.WriteLine("START WITH CURRENT DATATYPE: " + name_TagData + " | inputposition_inbytearray: " + inputposition_inbytearray);
@@ -1109,136 +1131,6 @@ namespace UnitTesting
             }
 
             return output_TagDataArray;
-        }
-
-        /// <summary>
-        /// Format the complex data type tag UDT_AllAtomicDataTypes from a ByteString to a nested string array.
-        /// </summary>
-        /// <param name="byteStringArray">
-        /// This input parameter is the Get_UDTAllAtomicDataTypes_Async method output or the Get_UDTAllAtomicDataTypes_Sync method output.<br/>
-        /// The ByteString array has the following format:<br/>
-        /// byteStringArray[0] = ByteString for online complex data type tag values<br/>
-        /// byteStringArray[1] = ByteString for offline complex data type tag values
-        /// </param>
-        /// <param name="printout">A boolean that, if True, prints the "before" and "after" values of the UDT_AllAtomicDataTypes tag member to the console.</param>
-        /// <returns>
-        /// A nested string array with the following format:<br/>
-        /// returnString[0][] = the names of the 14 members of the UDT_AllAtomicDataTypes complex data type tag in the order they were made in Studio 5000 Logix Designer<br/>
-        /// returnString[1][] = the online values of the 14 members of the UDT_AllAtomicDataTypes complex data type tag in the order they were made in Studio 5000 Logix Designer<br/>
-        /// returnString[2][] = the offline values of the 14 members of the UDT_AllAtomicDataTypes complex data type tag in the order they were made in Studio 5000 Logix Designer
-        /// <para>
-        /// Every element of the nested string array:<br/>
-        /// returnString[0][0] = UDT_AllAtomicDataTypes.ex_BOOL1 name<br/>
-        /// returnString[0][1] = UDT_AllAtomicDataTypes.ex_BOOL2 name<br/>
-        /// returnString[0][2] = UDT_AllAtomicDataTypes.ex_BOOL3 name<br/>
-        /// returnString[0][3] = UDT_AllAtomicDataTypes.ex_BOOL4 name<br/>
-        /// returnString[0][4] = UDT_AllAtomicDataTypes.ex_BOOL5 name<br/>
-        /// returnString[0][5] = UDT_AllAtomicDataTypes.ex_BOOL5 name<br/>
-        /// returnString[0][6] = UDT_AllAtomicDataTypes.ex_BOOL6 name<br/>
-        /// returnString[0][7] = UDT_AllAtomicDataTypes.ex_BOOL7 name<br/>
-        /// returnString[0][8] = UDT_AllAtomicDataTypes.ex_BOOL8 name<br/>
-        /// returnString[0][9] = UDT_AllAtomicDataTypes.ex_SINT name<br/>
-        /// returnString[0][10] = UDT_AllAtomicDataTypes.ex_INT name<br/>
-        /// returnString[0][11] = UDT_AllAtomicDataTypes.ex_DINT name<br/>
-        /// returnString[0][12] = UDT_AllAtomicDataTypes.ex_LINT name<br/>
-        /// returnString[0][13] = UDT_AllAtomicDataTypes.ex_REAL name<br/>
-        /// returnString[0][14] = UDT_AllAtomicDataTypes.ex_STRING name<br/>
-        /// returnString[1][0] = UDT_AllAtomicDataTypes.ex_BOOL1 online value<br/>
-        /// returnString[1][1] = UDT_AllAtomicDataTypes.ex_BOOL2 online value<br/>
-        /// returnString[1][2] = UDT_AllAtomicDataTypes.ex_BOOL3 online value<br/>
-        /// returnString[1][3] = UDT_AllAtomicDataTypes.ex_BOOL4 online value<br/>
-        /// returnString[1][4] = UDT_AllAtomicDataTypes.ex_BOOL5 online value<br/>
-        /// returnString[1][5] = UDT_AllAtomicDataTypes.ex_BOOL5 online value<br/>
-        /// returnString[1][6] = UDT_AllAtomicDataTypes.ex_BOOL6 online value<br/>
-        /// returnString[1][7] = UDT_AllAtomicDataTypes.ex_BOOL7 online value<br/>
-        /// returnString[1][8] = UDT_AllAtomicDataTypes.ex_BOOL8 online value<br/>
-        /// returnString[1][9] = UDT_AllAtomicDataTypes.ex_SINT online value<br/>
-        /// returnString[1][10] = UDT_AllAtomicDataTypes.ex_INT online value<br/>
-        /// returnString[1][11] = UDT_AllAtomicDataTypes.ex_DINT online value<br/>
-        /// returnString[1][12] = UDT_AllAtomicDataTypes.ex_LINT online value<br/>
-        /// returnString[1][13] = UDT_AllAtomicDataTypes.ex_REAL online value<br/>
-        /// returnString[1][14] = UDT_AllAtomicDataTypes.ex_STRING online value<br/>
-        /// returnString[1][15] = the number of bytes in element 0 of the input ByteString array (online values)<br/>
-        /// returnString[2][0] = UDT_AllAtomicDataTypes.ex_BOOL1 offline value<br/>
-        /// returnString[2][1] = UDT_AllAtomicDataTypes.ex_BOOL2 offline value<br/>
-        /// returnString[2][2] = UDT_AllAtomicDataTypes.ex_BOOL3 offline value<br/>
-        /// returnString[2][3] = UDT_AllAtomicDataTypes.ex_BOOL4 offline value<br/>
-        /// returnString[2][4] = UDT_AllAtomicDataTypes.ex_BOOL5 offline value<br/>
-        /// returnString[2][5] = UDT_AllAtomicDataTypes.ex_BOOL5 offline value<br/>
-        /// returnString[2][6] = UDT_AllAtomicDataTypes.ex_BOOL6 offline value<br/>
-        /// returnString[2][7] = UDT_AllAtomicDataTypes.ex_BOOL7 offline value<br/>
-        /// returnString[2][8] = UDT_AllAtomicDataTypes.ex_BOOL8 offline value<br/>
-        /// returnString[2][9] = UDT_AllAtomicDataTypes.ex_SINT offline value<br/>
-        /// returnString[2][10] = UDT_AllAtomicDataTypes.ex_INT offline value<br/>
-        /// returnString[2][11] = UDT_AllAtomicDataTypes.ex_DINT offline value<br/>
-        /// returnString[2][12] = UDT_AllAtomicDataTypes.ex_LINT offline value<br/>
-        /// returnString[2][13] = UDT_AllAtomicDataTypes.ex_REAL offline value<br/>
-        /// returnString[2][14] = UDT_AllAtomicDataTypes.ex_STRING offline value<br/>
-        /// returnString[2][15] = the number of bytes in element 1 of the input ByteString array (offline values)
-        /// </para>
-        /// </returns>
-        private static string[][] Format_UDTAllAtomicDataTypes(ByteString[] byteStringArray, bool printout)
-        {
-
-            string[][] returnString = new string[3][];
-            returnString[0] = new string[] { "UDT_AllAtomicDataTypes.ex_BOOL1", "UDT_AllAtomicDataTypes.ex_BOOL2", "UDT_AllAtomicDataTypes.ex_BOOL3",
-                "UDT_AllAtomicDataTypes.ex_BOOL4", "UDT_AllAtomicDataTypes.ex_BOOL5", "UDT_AllAtomicDataTypes.ex_BOOL6", "UDT_AllAtomicDataTypes.ex_BOOL7",
-                "UDT_AllAtomicDataTypes.ex_BOOL8", "UDT_AllAtomicDataTypes.ex_SINT", "UDT_AllAtomicDataTypes.ex_INT", "UDT_AllAtomicDataTypes.ex_DINT",
-                "UDT_AllAtomicDataTypes.ex_LINT", "UDT_AllAtomicDataTypes.ex_REAL", "UDT_AllAtomicDataTypes.ex_STRING" };
-            returnString[1] = new string[15];
-            returnString[2] = new string[15];
-
-            for (int i = 0; i < 2; i++)
-            {
-                var UDT_ByteArray = new byte[byteStringArray[0].Length];
-                for (int j = 0; j < UDT_ByteArray.Length; j++)
-                    UDT_ByteArray[j] = byteStringArray[i][j];
-
-                var ex_BOOLs = new byte[1];
-                Array.ConstrainedCopy(UDT_ByteArray, 0, ex_BOOLs, 0, 1);
-                string ex_BOOLS_binaryString = Convert.ToString(ex_BOOLs[0], 2).PadLeft(8, '0');
-                for (int j = 0; j < 8; j++)
-                    returnString[i + 1][j] = (Convert.ToString(ex_BOOLS_binaryString[7 - j]) == "1") ? "True" : "False";
-
-                var ex_SINT = new byte[1];
-                Array.ConstrainedCopy(UDT_ByteArray, 1, ex_SINT, 0, 1);
-                returnString[i + 1][8] = Convert.ToString(unchecked((sbyte)ex_SINT[0]));
-
-                var ex_INT = new byte[2];
-                Array.ConstrainedCopy(UDT_ByteArray, 2, ex_INT, 0, 2);
-                returnString[i + 1][9] = Convert.ToString(BitConverter.ToInt16(ex_INT));
-
-                var ex_DINT = new byte[4];
-                Array.ConstrainedCopy(UDT_ByteArray, 4, ex_DINT, 0, 4);
-                returnString[i + 1][10] = Convert.ToString(BitConverter.ToInt32(ex_DINT));
-
-                var ex_LINT = new byte[8];
-                Array.ConstrainedCopy(UDT_ByteArray, 8, ex_LINT, 0, 8);
-                returnString[i + 1][11] = Convert.ToString(BitConverter.ToInt64(ex_LINT));
-
-                var ex_REAL = new byte[4];
-                Array.ConstrainedCopy(UDT_ByteArray, 16, ex_REAL, 0, 4);
-                returnString[i + 1][12] = Convert.ToString(BitConverter.ToSingle(ex_REAL));
-
-                var ex_STRING = new byte[UDT_ByteArray.Length - 24];
-                Array.ConstrainedCopy(UDT_ByteArray, 24, ex_STRING, 0, UDT_ByteArray.Length - 24);
-                string string_result = Encoding.ASCII.GetString(ex_STRING).Replace("\0", "");
-                returnString[i + 1][13] = (string_result == "") ? "<empty_string>" : $"{string_result}";
-
-                returnString[i + 1][14] = Convert.ToString(byteStringArray[i].Length);
-            }
-
-            if (printout)
-            {
-                for (int i = 0; i < returnString[0].Length; i++)
-                {
-                    var online_message = $"online value: {returnString[1][i]}";
-                    var offline_message = $"offline value: {returnString[2][i]}";
-                    Console.WriteLine($"SUCCESS: " + returnString[0][i].PadRight(40, ' ') + online_message.PadRight(35, ' ') + offline_message.PadRight(35, ' '));
-                }
-            }
-
-            return returnString;
         }
         #endregion
 
