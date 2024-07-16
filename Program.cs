@@ -888,7 +888,7 @@ namespace UnitTesting
             return sb.ToString();
         }
 
-        private static async Task Set_UDTorAOI(string newTagValue, string tagPath, string tagName, OperationMode mode, TagData[] input_TagDataArray, LogixProject project)
+        private static async Task SetSingleValue_UDTorAOI(string newTagValue, string tagPath, string tagName, OperationMode mode, TagData[] input_TagDataArray, LogixProject project)
         {
             Console.WriteLine("Set values...");
             //TagData[] old_TagData = input_TagData;
@@ -920,29 +920,6 @@ namespace UnitTesting
 
                         for (int i = 0; i < 4; ++i)
                             new_byteArray[i + bytePosition] = bools_byteArray[i];
-
-
-                        Console.WriteLine(bitArray.ToString());
-
-                        //if ((boolPosition >= 23) && (boolPosition <= 31))
-                        //{
-                        //    int bitIndex = boolPosition - 24;
-                        //    // new_byteArray[bytePosition] 
-
-                        //}
-
-                        //byte[] TESTBYTEARRAY = udtoraoi_byteString.ToByteArray();
-                        //byte[] bools_bytearray2 = new byte[4];
-                        //Array.ConstrainedCopy(TESTBYTEARRAY, 0, bools_bytearray2, 0, 4);
-                        //var bitArray = new BitArray(bools_bytearray2);
-                        //Console.WriteLine("BIT ARRAY: " + bitArray.ToString());
-                        //int testtesttest = 0;
-                        //foreach (Object obj in bitArray)
-                        //{
-                        //    Console.WriteLine(testtesttest + " | {0,8}", obj);
-                        //    testtesttest++;
-                        //}
-                        new_byteArray[bytePosition] = Convert.ToByte(newTagValue, 2);
                     }
 
                     else if (dataType == DataType.SINT)
@@ -982,7 +959,7 @@ namespace UnitTesting
                 }
             }
 
-            // await project.SetTagValueAsync(newTagValue, mode, newTagValue, DataType.BYTE_ARRAY);
+            await project.SetTagValueAsync(newTagValue, mode, new_byteArray, DataType.BYTE_ARRAY);
         }
 
         private static DataType Get_DataType(string dataType)
