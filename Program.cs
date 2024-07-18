@@ -14,20 +14,46 @@ using OfficeOpenXml;
 using RockwellAutomation.LogixDesigner;
 using System.Collections;
 using System.Text;
+using System.Xml.Linq;
+using System.Xml.Serialization;
 using static RockwellAutomation.LogixDesigner.LogixProject;
 using DataType = RockwellAutomation.LogixDesigner.LogixProject.DataType;
 
 namespace UnitTesting
 {
 
+    //[XmlRoot("RSLogix5000Content")]
+    //public class RSLogix5000Content
+    //{
+    //    [XmlElement("Controller")]
+    //    public List<Controller> Controller { get; set; }
+    //}
+
+    //public class Controller
+    //{
+    //    [XmlElement("DataTypes")]
+    //    public List<Controller> DataTypes { get; set; }
+    //}
+    [XmlRoot("Parameter")]
+    public class Parameter
+    {
+        public string Name { get; set; }
+        public string DataType { get; set; }
+        public string Usage { get; set; }
+        public string Required { get; set; }
+        public string Visible { get; set; }
+    }
+
     internal class UnitTest
     {
-        struct TagData
+        struct AOI_Parameters
         {
             public string Name { get; set; }
             public string DataType { get; set; }
-            public string Scope { get; set; }
+            public string Usage { get; set; }
             public string Value { get; set; }
+            public string Required { get; set; }
+            public string Visible { get; set; }
             public int BytePosition { get; set; }
             public int BoolPosition { get; set; }
         }
@@ -47,6 +73,78 @@ namespace UnitTesting
             Console.WriteLine("                      UNIT TESTING | " + DateTime.Now + " " + TimeZoneInfo.Local);
             Console.WriteLine("========================================================================================================================");
             Console.WriteLine("  ====================================================================================================================");
+
+
+
+            Console.WriteLine("Start doing xml parsing...");
+            string filePath_1 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
+            XDocument xml_root = XDocument.Load(filePath_1);
+
+            XmlSerializer serializer = new XmlSerializer(typeof(List<Parameter>));
+            using (FileStream fileStream = new FileStream(filePath_1, FileMode.Open))
+            {
+                List<Parameter> parameters = (List<Parameter>)serializer.Deserialize(fileStream);
+                foreach (var parameter in parameters)
+                {
+                    Console.WriteLine($"Name: {parameter.Name} | DataType: {parameter.DataType} | Usage: {parameter.Usage} | Required: {parameter.Required} | Visible: {parameter.Visible}");
+                }
+
+            }
+
+            //var rslogix5000content = from contents in xml1.Descendants("Controller")
+            //           select new
+            //           {
+            //               Use = lv1.Attribute("Use").Value,
+            //               Name = lv1.Attribute("Name").Value,
+            //               Children = lv1.Descendants("Programs")
+            //           };
+
+            //string description = xml_root.Descendants("Parameter").FirstOrDefault()?.Value;
+            //Console.WriteLine("description: " + description);
+            //string alldescriptions = xml_root.Descendants("Parameters").FirstOrDefault()?.Value;
+            //Console.WriteLine("alldescriptions: " + alldescriptions);
+            //string test = xml_root.Descendants("Parameters").Elm
+            //Console.WriteLine("test: " + test);
+
+
+            foreach (var p in xml_root.Descendants("Parameter"))
+            {
+                string paramName = p.Attribute("Name").Value;
+                Console.WriteLine("each aoi parameter: " + paramName);
+            }
+
+            var parameters2 = (from p in xml_root.Descendants("Parameters")
+                               select new
+                               {
+                                   ParameterName = (string)p.Attribute("Name"),
+                                   Params = p.Elements("Parameter")
+                               }).ToList();
+            foreach (var param in parameters2)
+            {
+                Console.WriteLine("Parameters: " + param.ParameterName);
+            }
+
+            //string TargetType = (string)docs.Attribute("TargetType");
+            //TargetRevision = (string)docs.Attribute("TargetRevision"),
+            //TargetLastEdited = (string)docs.Attribute("TargetLastEdited"),
+            //ContainsContext = (string)docs.Attribute("ContainsContext"),
+            //ExportDate = (string)docs.Attribute("ExportDate"),
+            //ExportOptions = (string)docs.Attribute("ExportOptions"),
+            //Section_DataTypes = docs.Elements("DataTypes"),
+
+
+            //foreach (var doc in documents)
+            //{
+            //    foreach (var section in doc.Sections)
+            //    {
+            //        Console.WriteLine("SectionId: " + section.Attribute("id"));
+            //        foreach (var item in section.Elements("item"))
+            //        {
+            //            Console.WriteLine("ItemId: " + item.Attribute("id"));
+            //        }
+            //    }
+            //}
+
 
             // From a string array to a list, store the name (including their path) for each excel workbook.
             // With the current implementation, each Excel Workbook tests a single Add-On Instruction.
@@ -111,42 +209,94 @@ namespace UnitTesting
                 string commPath = SetUpEmulatedController_Sync(acdFilePath, "UnitTest_Chassis", controllerName);
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE setting up Factory Talk Logix Echo emulated controller\n---");
 
-                //// Create a new ACD project file.
-                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START creating ACD file...");
-                //// string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\", DateTime.Now.ToString("yyyyMMddHHmmss") + "_AOIunittest.ACD");
+                // Create a new ACD project file.
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START creating & opening ACD file...");
+                string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\", DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiTagName + "_UnitTest.ACD");
                 //string acdPath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\20240716141455_AOIunittest.ACD";
-                //uint majorRevision = 36;
-                //string processorTypeName = "1756-L85E";
-                //string controllerName2 = "UnitTest_Controller";
-                //// await CreateNewProjectAsync(acdPath, majorRevision, processorTypeName, controllerName2);
-                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS creating ACD file\n---");
+                uint majorRevision = 36;
+                string processorTypeName = "1756-L85E";
+                string controllerName2 = "UnitTest_Controller";
+                LogixProject project = await CreateNewProjectAsync(acdPath, majorRevision, processorTypeName, controllerName2);
+                Console.WriteLine($"SUCCESS: file created at {acdPath}");
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE creating & opening ACD file\n---");
+
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START uploading ACD file...");
+                //string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\", DateTime.Now.ToString("yyyyMMddHHmmss") + "_AOI_UnitTest.ACD");
+                //await LogixProject.UploadToNewProjectAsync(acdPath, commPath);
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS uploading ACD file\n---");
+
+                //string export_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\AOI_UnitTestTemplate.ACD";
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START exporting program file...");
+                //string xPath2 = @"Controller/Programs";
+                ////string export_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\NEW_P00_AOI_Testing_Program.L5X";
+                //await project.PartialExportToXmlFileAsync(xPath2, export_filePath);
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE exporting program file\n---");
 
 
-                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START uploading ACD file...");
-                string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\", DateTime.Now.ToString("yyyyMMddHHmmss") + "_AOI_UnitTest.ACD");
-                await LogixProject.UploadToNewProjectAsync(acdPath, commPath);
-                Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS uploading ACD file\n---");
+
+                //string acdPath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles\UnitTest_AOI.ACD"; // USED DURING DEV
+
 
 
 
                 // Open the ACD project file and store the reference as myProject.
-                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START opening ACD file...");
-                LogixProject project = await LogixProject.OpenLogixProjectAsync(acdPath);
-                Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS opening ACD file\n---");
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START opening ACD file...");
+                ////LogixProject project = await LogixProject.OpenLogixProjectAsync(acdPath);
+                //var logger = new StdOutEventLogger();
+                //project.AddEventHandler(logger);
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS opening ACD file\n---");
 
-                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START importing AOI.L5X...");
-                //string xPath = @"Controller/Programs/Program[@Name='P00_AOI_Testing']";
-                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
-                string xPath = @"Controller";
-                //string xPath = @"Controller/Tasks/Task[@Name='T00_AOI_Testing']";
-                //string xPath = @"Controller/Programs"; THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
-                //string xPath = @"Controller/Tasks/Task[@Name='T00_AOI_Testing']";
-                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\P00_AOI_Testing_Program.L5X";
-                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\20240716140136_AOIunittest.L5X";
-                string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
-                await project.PartialImportFromXmlFileAsync(xPath, filePath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+
+
+                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\NEW_P00_AOI_Testing_Program.L5X";
+                string xPath = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
+                                                        //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\P00_AOI_Testing_Program.L5X";
+                string filePath1 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\PROGRAMTARGET_P00_AOI_Testing_Program.L5X";
+                await project.PartialImportFromXmlFileAsync(xPath, filePath1, LogixProject.ImportCollisionOptions.OverwriteOnColl);
                 await project.SaveAsync();
-                Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS importing AOI.L5X\n---");
+
+                string filePath2 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\MyTaskExp.L5X";
+                string xPath2 = @"Controller/Tasks";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
+                await project.PartialImportFromXmlFileAsync(xPath2, filePath2, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+                await project.SaveAsync();
+
+
+
+
+
+
+
+
+
+                //XmlDocument doc1 = new XmlDocument();
+                //doc1.Load(filePath);
+                //XmlNode node1 = doc1.DocumentElement.SelectSingleNode("/")
+
+                //XmlDocument doc2 = new XmlDocument();
+                //doc2.Load(filePath2);
+
+
+
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START importing AOI.L5X...");
+                ////string xPath = @"Controller/Programs/Program[@Name='P00_AOI_Testing']";
+                ////string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
+                //string xPath = @"Controller"; // didn't work with P00_AOI_Testing_Program.L5X
+                // string xPath = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
+                //string xPath = @"Controller/Programs"; 
+                // string xPath = @"/RSLogix5000Content/Controller/Tasks/Task[@Name='T00_AOI_Testing']";
+                //string xPath = @"/RSLogix5000Content/Controller/Tasks";
+                ////string xPath = @"Controller/Tasks";
+                //string xPath = @"RSLogix5000Content/Controller/Tasks"; // didn't work with P00_AOI_Testing_Program.L5X
+                // string xPath = @"RSLogix5000Content/Controller"; // didn't work with P00_AOI_Testing_Program.L5X
+                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\P00_AOI_Testing_Program.L5X";
+                ////string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\20240716140136_AOIunittest.L5X";
+                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
+                //string targetName = @"/RSLogix5000Content/Controller/Programs/Program"; // PartialImportWithTargetFromXmlFile does not allow to import XML xPath: /RSLogix5000Content/Controller/Programs
+                //string targetName = @"/RSLogix5000Content/Controller/Programs"; //PartialImportWithTargetFromXmlFile does not allow to import XML xPath: /RSLogix5000Content/Controller/Programs
+                //string xPath = @"Controller/Tasks/Task[@Name='T00_AOI_Testing']"; // Invalid import target for the XML target type. (C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles\UnitTest_AOI.ACD)
+                //string targetName = @"/RSLogix5000Content"; //PartialImportWithTargetFromXmlFile does not allow to import XML xPath: /RSLogix5000Content/Controller/Programs
+                //await project.PartialImportWithTargetFromXmlFileAsync(xPath, targetName, filePath, LogixProject.PartialImportOption.FinalizeEdits);
+                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS importing AOI.L5X\n---");
 
                 // Change controller mode to program & verify.
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] START changing controller to PROGRAM...");
@@ -200,20 +350,20 @@ namespace UnitTesting
 
                 // ---------------------------------------------------------------------------------------------------------------------------
 
-                TagData[] testDataPoint = GetAOIParameters(currentExcelUnitTest_filePath);
+                //TagData[] testDataPoint = GetAOIParameters(currentExcelUnitTest_filePath);
 
-                Console.WriteLine("current fullTagPath: " + aoiTagScope);
-                ByteString udtoraoi_byteString = Get_UDTorAOI_ByteString_Sync(aoiTagScope, project, OperationMode.Online);
+                //Console.WriteLine("current fullTagPath: " + aoiTagScope);
+                //ByteString udtoraoi_byteString = Get_UDTorAOI_ByteString_Sync(aoiTagScope, project, OperationMode.Online);
 
-                TagData[] tagdata_UDTorAOI = Get_UDTorAOI(testDataPoint, udtoraoi_byteString, true);
-                ShowDataPoints(tagdata_UDTorAOI);
+                //TagData[] tagdata_UDTorAOI = Get_UDTorAOI(testDataPoint, udtoraoi_byteString, true);
+                //ShowDataPoints(tagdata_UDTorAOI);
 
-                int testcases = GetPopulatedColumnCount(currentExcelUnitTest_filePath, 20) - 3;
-                Console.WriteLine("testcases: " + testcases);
-                //await SetSingleValue_UDTorAOI("40", aoiTagScope, "Temperature", OperationMode.Online, tagdata_UDTorAOI, myProject);
-                //await SetSingleValue_UDTorAOI("0", aoiTagScope, "isFahrenheit", OperationMode.Online, tagdata_UDTorAOI, myProject);
+                //int testcases = GetPopulatedColumnCount(currentExcelUnitTest_filePath, 20) - 3;
+                //Console.WriteLine("testcases: " + testcases);
+                ////await SetSingleValue_UDTorAOI("40", aoiTagScope, "Temperature", OperationMode.Online, tagdata_UDTorAOI, myProject);
+                ////await SetSingleValue_UDTorAOI("0", aoiTagScope, "isFahrenheit", OperationMode.Online, tagdata_UDTorAOI, myProject);
 
-                ShowDataPoints(Get_UDTorAOI(testDataPoint, Get_UDTorAOI_ByteString_Sync(aoiTagScope, project, OperationMode.Online), true));
+                //ShowDataPoints(Get_UDTorAOI(testDataPoint, Get_UDTorAOI_ByteString_Sync(aoiTagScope, project, OperationMode.Online), true));
 
 
                 //await myProject.GoOfflineAsync();
@@ -287,7 +437,7 @@ namespace UnitTesting
             }
         }
 
-        private static void ShowDataPoints(TagData[] dataPointsArray)
+        private static void ShowDataPoints(AOI_Parameters[] dataPointsArray)
         {
             int arraySize = dataPointsArray.Length;
             Console.WriteLine("arraySize: " + arraySize);
@@ -295,22 +445,22 @@ namespace UnitTesting
             for (int i = 0; i < arraySize; i++)
             {
                 Console.WriteLine($"Name: {dataPointsArray[i].Name,-20} | Data Type: {dataPointsArray[i].DataType,-9} | " +
-                    $"Scope: {dataPointsArray[i].Scope,-7} | Value: {dataPointsArray[i].Value,-20} " +
+                    $"Scope: {dataPointsArray[i].Usage,-7} | Value: {dataPointsArray[i].Value,-20} " +
                     $"| Byte Position: {dataPointsArray[i].BytePosition,-3} | Bool Position: {dataPointsArray[i].BoolPosition}");
             }
         }
 
-        private static TagData[] GetAOIParameters(string filePath)
+        private static AOI_Parameters[] GetAOIParameters(string filePath)
         {
             // DataPoint[] returnDataPoints = new DataPoint[2];
             int paramCount;
-            TagData[] returnDataPoints;
+            AOI_Parameters[] returnDataPoints;
 
             FileInfo existingFile = new FileInfo(filePath);
             using (ExcelPackage package = new ExcelPackage(existingFile))
             {
                 paramCount = GetPopulatedRowCount(filePath, 2) - 6;
-                returnDataPoints = new TagData[paramCount];
+                returnDataPoints = new AOI_Parameters[paramCount];
 
                 ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
                 for (int row = 0; row < paramCount; row++)
@@ -319,10 +469,10 @@ namespace UnitTesting
                     var paramDataType = worksheet.Cells[row + 20, 3].Value.ToString()!.Trim();
                     var paramScope = worksheet.Cells[row + 20, 4].Value.ToString()!.Trim();
 
-                    TagData dataPoint = new TagData();
+                    AOI_Parameters dataPoint = new AOI_Parameters();
                     dataPoint.Name = paramName;
                     dataPoint.DataType = paramDataType;
-                    dataPoint.Scope = paramScope;
+                    dataPoint.Usage = paramScope;
 
                     returnDataPoints[row] = dataPoint;
                 }
@@ -911,7 +1061,7 @@ namespace UnitTesting
             }
         }
 
-        private static async Task SetSingleValue_UDTorAOI(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, TagData[] input_TagDataArray, LogixProject project)
+        private static async Task SetSingleValue_UDTorAOI(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, AOI_Parameters[] input_TagDataArray, LogixProject project)
         {
             ByteString input_ByteString = Get_UDTorAOI_ByteString_Sync(aoiTagPath, project, mode);
             byte[] new_byteArray = input_ByteString.ToByteArray();
@@ -1018,10 +1168,10 @@ namespace UnitTesting
             return type;
         }
 
-        private static TagData[] Get_UDTorAOI(TagData[] input_TagDataArray, ByteString input_AOIorUDT_ByteString, bool printout)
+        private static AOI_Parameters[] Get_UDTorAOI(AOI_Parameters[] input_TagDataArray, ByteString input_AOIorUDT_ByteString, bool printout)
         {
             // initialize values needed for this method
-            TagData[] output_TagDataArray = input_TagDataArray;
+            AOI_Parameters[] output_TagDataArray = input_TagDataArray;
             byte[] input_bytearray = input_AOIorUDT_ByteString.ToByteArray();
             int byteStartPosition_InputByteArray = 0;
             int boolStartPosition_InputByteArray = 0;
