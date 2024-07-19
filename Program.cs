@@ -40,15 +40,32 @@ namespace UnitTesting
             string rungXML = CopyXmlFile(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
             Console.WriteLine("rungXML filepath: " + rungXML);
 
-            //DeleteElementFromComplexElement(rungXML, "RSLogix5000Content", "TargetName");
+            string aoiName = GetAttributeValue(rungXML, "AddOnInstructionDefinition", "Name");
+
+            //Modify top half
             DeleteAttributeFromRoot(rungXML, "TargetName");
+            DeleteAttributeFromRoot(rungXML, "TargetRevision");
+            DeleteAttributeFromRoot(rungXML, "TargetLastEdited");
+            DeleteAttributeFromComplexElement(rungXML, "AddOnInstructionDefinition", "Use");
+            ChangeComplexElementAttribute(rungXML, "RSLogix5000Content", "TargetCount", "1");
+            ChangeComplexElementAttribute(rungXML, "RSLogix5000Content", "TargetType", "Rung");
 
+            // Create bottom half
+            AddElementToComplexElement(rungXML, "Controller", "Tags");
+            AddAttributeToComplexElement(rungXML, "Tags", "Use", "Context");
 
+            AddElementToComplexElement(rungXML, "Tags", "Tag");
+            AddAttributeToComplexElement(rungXML, "Tag", "Name", "AOI_" + aoiName);
+            AddAttributeToComplexElement(rungXML, "Tag", "TagType", "Base");
+            AddAttributeToComplexElement(rungXML, "Tag", "DataType", aoiName);
+            AddAttributeToComplexElement(rungXML, "Tag", "Constant", "false");
+            AddAttributeToComplexElement(rungXML, "Tag", "ExternalAccess", "Read/Write");
+            AddAttributeToComplexElement(rungXML, "Tag", "OpcUaAccess", "None");
 
+            AddElementToComplexElement(rungXML, "Tag", "Data");
+            AddAttributeToComplexElement(rungXML, "Data", "Format", "L5K");
 
-
-
-
+            CreateCData(rungXML, "Data", "test");
 
 
             // THE ONLY PARAMETER THAT WILL NEED TO BE MODIFIED (MAYBE PASS THIS IN FROM JENKINS)
@@ -362,6 +379,37 @@ namespace UnitTesting
             return newFilePath;
         }
 
+        public static string GetAttributeValue(string xmlFilePath, string complexElementName, string attributeName)
+        {
+            // Load the XML document
+            XDocument xdoc = XDocument.Load(xmlFilePath);
+
+            // Find the complex element by name
+            XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
+
+            if (complexElement != null)
+            {
+                // Find the attribute within the complex element
+                XAttribute attribute = complexElement.Attribute(attributeName);
+                if (attribute != null)
+                {
+                    // Return the attribute value
+                    return attribute.Value;
+                }
+                else
+                {
+                    Console.WriteLine($"Attribute '{attributeName}' not found in element '{complexElementName}'.");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"The complex element '{complexElementName}' was not found in the XML file.");
+            }
+
+            return null; // Return null if attribute value is not found
+        }
+
+
         public Dictionary<string, string> CopyAttributes(string xmlFilePath, string elementName)
         {
             // Load the XML document
@@ -381,67 +429,187 @@ namespace UnitTesting
             return attributesDictionary;
         }
 
-        public static void DeleteElementFromComplexElement(string xmlFilePath, string complexElementName, string elementToDelete)
+        public static void DeleteAttributeFromComplexElement(string xmlFilePath, string complexElementName, string attributeToDelete)
         {
-            // Load the XML document
-            XDocument xdoc = XDocument.Load(xmlFilePath);
-
-            // Find the specified complex element
-            XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
-            Console.WriteLine("complexElement: " + complexElement);
-
-            if (complexElement == null)
+            try
             {
-                Console.WriteLine($"The complex element '{complexElementName}' was not found in the XML file.");
-                return;
+                // Load the XML document
+                XDocument xdoc = XDocument.Load(xmlFilePath);
+
+                // Find the complex element by name
+                XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
+
+                if (complexElement != null)
+                {
+                    // Find the attribute within the complex element
+                    XAttribute attribute = complexElement.Attribute(attributeToDelete);
+                    if (attribute != null)
+                    {
+                        // Remove the attribute
+                        attribute.Remove();
+                        Console.WriteLine($"Attribute '{attributeToDelete}' has been removed from the element '{complexElementName}'.");
+
+                        // Save the changes back to the file
+                        xdoc.Save(xmlFilePath);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Attribute '{attributeToDelete}' not found in element '{complexElementName}'.");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"The complex element '{complexElementName}' was not found in the XML file.");
+                }
             }
-
-            // Find and remove the specified element within the complex element
-            XElement element = complexElement.Descendants(elementToDelete).FirstOrDefault();
-            Console.WriteLine("element: " + element);
-            if (element != null)
+            catch (Exception ex)
             {
-                element.Remove();
-                Console.WriteLine($"The element '{elementToDelete}' has been successfully deleted from the complex element '{complexElementName}'.");
-                // Save the changes back to the file
-                xdoc.Save(xmlFilePath);
-            }
-            else
-            {
-                Console.WriteLine($"The element '{elementToDelete}' was not found within the complex element '{complexElementName}'.");
+                Console.WriteLine($"An error occurred: {ex.Message}");
             }
         }
 
-
-        public static void DeleteAttributeFromRoot(string xmlFilePath, string elementToDelete)
+        public static void DeleteAttributeFromRoot(string xmlFilePath, string attributeToDelete)
         {
             // Load the XML document
             XDocument xdoc = XDocument.Load(xmlFilePath);
 
-            // The root element is accessed directly
+            // Access the root element
             XElement root = xdoc.Root;
 
-            if (root == null)
-            {
-                Console.WriteLine("The XML file does not have a root element.");
-                return;
-            }
+            // Name of root element in L5Xs
+            string complexElementName = "RSLogix5000Content";
 
-            // Find and remove the specified element within the root element
-            XElement element = root.Attribute;
-            if (element != null)
+            // Find the attribute and remove it
+            XAttribute attribute = root.Attribute(attributeToDelete);
+            if (attribute != null)
             {
-                element.Remove();
-                Console.WriteLine($"The element '{elementToDelete}' has been successfully deleted from the root element.");
+                attribute.Remove();
+                Console.WriteLine($"Attribute '{attributeToDelete}' has been removed from the root complex element '{complexElementName}'.");
                 // Save the changes back to the file
                 xdoc.Save(xmlFilePath);
             }
             else
             {
-                Console.WriteLine($"The element '{elementToDelete}' was not found within the root element.");
+                Console.WriteLine($"Attribute '{attributeToDelete}' not found in the root complex element '{complexElementName}'.");
             }
         }
 
+
+        public static void ChangeComplexElementAttribute(string xmlFilePath, string complexElementName, string attributeName, string attributeValue)
+        {
+            // Load the XML document
+            XDocument xdoc = XDocument.Load(xmlFilePath);
+
+            // Find the complex element by name
+            XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
+
+            if (complexElement != null)
+            {
+                // Add the attribute to the complex element
+                complexElement.SetAttributeValue(attributeName, attributeValue);
+                Console.WriteLine($"Attribute '{attributeName}' with value '{attributeValue}' has been added to the element '{complexElementName}'.");
+
+                // Save the changes back to the file
+                xdoc.Save(xmlFilePath);
+            }
+            else
+            {
+                Console.WriteLine($"The complex element '{complexElementName}' was not found in the XML file.");
+            }
+        }
+
+        public static void AddAttributeToComplexElement(string xmlFilePath, string complexElementName, string attributeName, string attributeValue)
+        {
+            try
+            {
+                // Load the XML document
+                XDocument xdoc = XDocument.Load(xmlFilePath);
+
+                // Find the complex element by name
+                XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
+
+                if (complexElement != null)
+                {
+                    // Add the attribute to the complex element
+                    complexElement.SetAttributeValue(attributeName, attributeValue);
+                    Console.WriteLine($"Attribute '{attributeName}' with value '{attributeValue}' has been added to the element '{complexElementName}'.");
+
+                    // Save the changes back to the file
+                    xdoc.Save(xmlFilePath);
+                }
+                else
+                {
+                    Console.WriteLine($"The complex element '{complexElementName}' was not found in the XML file.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+
+        public static void AddElementToComplexElement(string xmlFilePath, string complexElementName, string newElementName)
+        {
+            try
+            {
+                // Load the XML document
+                XDocument xdoc = XDocument.Load(xmlFilePath);
+
+                // Find the complex element by name
+                XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
+
+                if (complexElement != null)
+                {
+                    // Create the new element
+                    XElement newElement = new XElement(newElementName);
+                    complexElement.Add(newElement);
+                    Console.WriteLine($"Element '{newElementName}' has been added to the complex element '{complexElementName}'.");
+
+                    // Save the changes back to the file
+                    xdoc.Save(xmlFilePath);
+                }
+                else
+                {
+                    Console.WriteLine($"The complex element '{complexElementName}' was not found in the XML file.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+
+
+        public static void CreateCData(string xmlFilePath, string complexElementName, string cdataContent)
+        {
+            try
+            {
+                // Load the XML document
+                XDocument xdoc = XDocument.Load(xmlFilePath);
+
+                // Find the complex element by name
+                XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
+
+                if (complexElement != null)
+                {
+                    // Create a new CDATA section and add it to the complex element
+                    XCData cdataSection = new XCData(cdataContent);
+                    complexElement.Add(cdataSection);
+                    Console.WriteLine($"A new CDATA section has been created and added to the element '{complexElementName}'.");
+
+                    // Save the changes back to the file
+                    xdoc.Save(xmlFilePath);
+                }
+                else
+                {
+                    Console.WriteLine($"The complex element '{complexElementName}' was not found in the XML file.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
         #endregion
 
         #region METHODS: reading excel file
