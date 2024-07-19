@@ -15,56 +15,48 @@ using RockwellAutomation.LogixDesigner;
 using System.Collections;
 using System.Text;
 using System.Xml.Linq;
-using System.Xml.Serialization;
 using static RockwellAutomation.LogixDesigner.LogixProject;
 using DataType = RockwellAutomation.LogixDesigner.LogixProject.DataType;
 
 namespace UnitTesting
 {
-
-    //[XmlRoot("RSLogix5000Content")]
-    //public class RSLogix5000Content
-    //{
-    //    [XmlElement("Controller")]
-    //    public List<Controller> Controller { get; set; }
-    //}
-
-    //public class Controller
-    //{
-    //    [XmlElement("DataTypes")]
-    //    public List<Controller> DataTypes { get; set; }
-    //}
-    [XmlRoot("Parameter")]
-    public class Parameter
-    {
-        public string Name { get; set; }
-        public string DataType { get; set; }
-        public string Usage { get; set; }
-        public string Required { get; set; }
-        public string Visible { get; set; }
-    }
-
     internal class UnitTest
     {
-        struct AOI_Parameters
+        struct AOIParameters
         {
             public string Name { get; set; }
             public string DataType { get; set; }
             public string Usage { get; set; }
+            public bool Required { get; set; }
+            public bool Visible { get; set; }
             public string Value { get; set; }
-            public string Required { get; set; }
-            public string Visible { get; set; }
             public int BytePosition { get; set; }
             public int BoolPosition { get; set; }
         }
 
         static async Task Main()
         {
+            // XML FILE MANIPULATIONS
+            string rungXML = CopyXmlFile(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
+            Console.WriteLine("rungXML filepath: " + rungXML);
+
+            //DeleteElementFromComplexElement(rungXML, "RSLogix5000Content", "TargetName");
+            DeleteAttributeFromRoot(rungXML, "TargetName");
+
+
+
+
+
+
+
+
+
             // THE ONLY PARAMETER THAT WILL NEED TO BE MODIFIED (MAYBE PASS THIS IN FROM JENKINS)
             // Parameter to be specified in jenkins
             string unitTestExcelWorkbooks_folderPath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest";
             string exampleTestReportsFolder_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports";
-
+            AOIParameters[] testParams = Get_AOIParameters_FromL5X(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
+            Show_AOIParameters(testParams);
 
 
             // Title Banner 
@@ -73,78 +65,6 @@ namespace UnitTesting
             Console.WriteLine("                      UNIT TESTING | " + DateTime.Now + " " + TimeZoneInfo.Local);
             Console.WriteLine("========================================================================================================================");
             Console.WriteLine("  ====================================================================================================================");
-
-
-
-            Console.WriteLine("Start doing xml parsing...");
-            string filePath_1 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
-            XDocument xml_root = XDocument.Load(filePath_1);
-
-            XmlSerializer serializer = new XmlSerializer(typeof(List<Parameter>));
-            using (FileStream fileStream = new FileStream(filePath_1, FileMode.Open))
-            {
-                List<Parameter> parameters = (List<Parameter>)serializer.Deserialize(fileStream);
-                foreach (var parameter in parameters)
-                {
-                    Console.WriteLine($"Name: {parameter.Name} | DataType: {parameter.DataType} | Usage: {parameter.Usage} | Required: {parameter.Required} | Visible: {parameter.Visible}");
-                }
-
-            }
-
-            //var rslogix5000content = from contents in xml1.Descendants("Controller")
-            //           select new
-            //           {
-            //               Use = lv1.Attribute("Use").Value,
-            //               Name = lv1.Attribute("Name").Value,
-            //               Children = lv1.Descendants("Programs")
-            //           };
-
-            //string description = xml_root.Descendants("Parameter").FirstOrDefault()?.Value;
-            //Console.WriteLine("description: " + description);
-            //string alldescriptions = xml_root.Descendants("Parameters").FirstOrDefault()?.Value;
-            //Console.WriteLine("alldescriptions: " + alldescriptions);
-            //string test = xml_root.Descendants("Parameters").Elm
-            //Console.WriteLine("test: " + test);
-
-
-            foreach (var p in xml_root.Descendants("Parameter"))
-            {
-                string paramName = p.Attribute("Name").Value;
-                Console.WriteLine("each aoi parameter: " + paramName);
-            }
-
-            var parameters2 = (from p in xml_root.Descendants("Parameters")
-                               select new
-                               {
-                                   ParameterName = (string)p.Attribute("Name"),
-                                   Params = p.Elements("Parameter")
-                               }).ToList();
-            foreach (var param in parameters2)
-            {
-                Console.WriteLine("Parameters: " + param.ParameterName);
-            }
-
-            //string TargetType = (string)docs.Attribute("TargetType");
-            //TargetRevision = (string)docs.Attribute("TargetRevision"),
-            //TargetLastEdited = (string)docs.Attribute("TargetLastEdited"),
-            //ContainsContext = (string)docs.Attribute("ContainsContext"),
-            //ExportDate = (string)docs.Attribute("ExportDate"),
-            //ExportOptions = (string)docs.Attribute("ExportOptions"),
-            //Section_DataTypes = docs.Elements("DataTypes"),
-
-
-            //foreach (var doc in documents)
-            //{
-            //    foreach (var section in doc.Sections)
-            //    {
-            //        Console.WriteLine("SectionId: " + section.Attribute("id"));
-            //        foreach (var item in section.Elements("item"))
-            //        {
-            //            Console.WriteLine("ItemId: " + item.Attribute("id"));
-            //        }
-            //    }
-            //}
-
 
             // From a string array to a list, store the name (including their path) for each excel workbook.
             // With the current implementation, each Excel Workbook tests a single Add-On Instruction.
@@ -238,29 +158,46 @@ namespace UnitTesting
 
 
 
-
-                // Open the ACD project file and store the reference as myProject.
-                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START opening ACD file...");
-                ////LogixProject project = await LogixProject.OpenLogixProjectAsync(acdPath);
+                //// =========================================================================
+                //// LOGGER INFO
                 //var logger = new StdOutEventLogger();
                 //project.AddEventHandler(logger);
-                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS opening ACD file\n---");
+                //// =========================================================================
 
+                //Console.WriteLine("\n\n\n\n");
 
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START preparing programmatically created ACD...");
+                //Console.WriteLine("\n\n\n\n");
 
                 //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\NEW_P00_AOI_Testing_Program.L5X";
                 string xPath = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
                                                         //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\P00_AOI_Testing_Program.L5X";
                 string filePath1 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\PROGRAMTARGET_P00_AOI_Testing_Program.L5X";
                 await project.PartialImportFromXmlFileAsync(xPath, filePath1, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-                await project.SaveAsync();
+                //Console.WriteLine("\n\n\n\n");
 
                 string filePath2 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\MyTaskExp.L5X";
-                string xPath2 = @"Controller/Tasks";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
+                string xPath2 = @"Controller/Tasks";  // include program in task
                 await project.PartialImportFromXmlFileAsync(xPath2, filePath2, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+                //Console.WriteLine("\n\n\n\n");
+
+                string filePath3 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
+                string xPath3 = @"Controller/AddOnInstructionDefinitions";
+                await project.PartialImportFromXmlFileAsync(xPath3, filePath3, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+                //Console.WriteLine("\n\n\n\n");
+
+                string filePath4 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\Rung0_from_R00_AOI_Testing.L5X";
+                //string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines/Routine[@Name='R00_AOI_Testing']/RLLContent/Rung[@Number>='0]";
+                //string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines/Routine[@Name='R00_AOI_Testing']/RLLContent/Rung[@Number>='1]";
+                //string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines/Routine[@Name='R00_AOI_Testing']";
+                //string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines/Routine[@Name='R00_AOI_Testing']/RLLContent/Rung[@Number='0']";
+                string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines";
+                await project.PartialImportFromXmlFileAsync(xPath4, filePath4, LogixProject.ImportCollisionOptions.OverwriteOnColl);
                 await project.SaveAsync();
+                //Console.WriteLine("\n\n\n\n");
 
-
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE preparing programmatically created ACD\n---");
+                //Console.WriteLine("\n\n\n\n");
 
 
 
@@ -371,6 +308,142 @@ namespace UnitTesting
 
 
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        #region METHODS: manipulate L5X
+        public static string CopyXmlFile(string sourceFilePath)
+        {
+            // Check if the source file exists
+            if (!File.Exists(sourceFilePath))
+            {
+                Console.WriteLine($"Source file '{sourceFilePath}' does not exist.");
+            }
+
+            // Get the directory and file name from the source file path
+            string directory = Path.GetDirectoryName(sourceFilePath);
+            string fileName = Path.GetFileNameWithoutExtension(sourceFilePath);
+            string extension = Path.GetExtension(sourceFilePath);
+
+            // Construct the new file path for the copied file
+            string newFileName = $"COPY_{fileName}{extension}";
+            string newFilePath = Path.Combine(directory, newFileName);
+
+            // Copy the file
+            File.Copy(sourceFilePath, newFilePath, overwrite: true);
+
+            return newFilePath;
+        }
+
+        public Dictionary<string, string> CopyAttributes(string xmlFilePath, string elementName)
+        {
+            // Load the XML document
+            XDocument xdoc = XDocument.Load(xmlFilePath);
+
+            // Find the specified element. Assuming there is only one unique element with this name
+            XElement element = xdoc.Descendants(elementName).FirstOrDefault();
+
+            if (element == null)
+            {
+                throw new InvalidOperationException($"The element '{elementName}' was not found in the XML file.");
+            }
+
+            // Create a dictionary to hold the attribute names and values
+            Dictionary<string, string> attributesDictionary = element.Attributes().ToDictionary(attr => attr.Name.LocalName, attr => attr.Value);
+
+            return attributesDictionary;
+        }
+
+        public static void DeleteElementFromComplexElement(string xmlFilePath, string complexElementName, string elementToDelete)
+        {
+            // Load the XML document
+            XDocument xdoc = XDocument.Load(xmlFilePath);
+
+            // Find the specified complex element
+            XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
+            Console.WriteLine("complexElement: " + complexElement);
+
+            if (complexElement == null)
+            {
+                Console.WriteLine($"The complex element '{complexElementName}' was not found in the XML file.");
+                return;
+            }
+
+            // Find and remove the specified element within the complex element
+            XElement element = complexElement.Descendants(elementToDelete).FirstOrDefault();
+            Console.WriteLine("element: " + element);
+            if (element != null)
+            {
+                element.Remove();
+                Console.WriteLine($"The element '{elementToDelete}' has been successfully deleted from the complex element '{complexElementName}'.");
+                // Save the changes back to the file
+                xdoc.Save(xmlFilePath);
+            }
+            else
+            {
+                Console.WriteLine($"The element '{elementToDelete}' was not found within the complex element '{complexElementName}'.");
+            }
+        }
+
+
+        public static void DeleteAttributeFromRoot(string xmlFilePath, string elementToDelete)
+        {
+            // Load the XML document
+            XDocument xdoc = XDocument.Load(xmlFilePath);
+
+            // The root element is accessed directly
+            XElement root = xdoc.Root;
+
+            if (root == null)
+            {
+                Console.WriteLine("The XML file does not have a root element.");
+                return;
+            }
+
+            // Find and remove the specified element within the root element
+            XElement element = root.Attribute;
+            if (element != null)
+            {
+                element.Remove();
+                Console.WriteLine($"The element '{elementToDelete}' has been successfully deleted from the root element.");
+                // Save the changes back to the file
+                xdoc.Save(xmlFilePath);
+            }
+            else
+            {
+                Console.WriteLine($"The element '{elementToDelete}' was not found within the root element.");
+            }
+        }
+
+        #endregion
+
         #region METHODS: reading excel file
         private static int GetPopulatedColumnCount(string filePath, int rowNumber)
         {
@@ -437,7 +510,7 @@ namespace UnitTesting
             }
         }
 
-        private static void ShowDataPoints(AOI_Parameters[] dataPointsArray)
+        private static void Show_AOIParameters(AOIParameters[] dataPointsArray)
         {
             int arraySize = dataPointsArray.Length;
             Console.WriteLine("arraySize: " + arraySize);
@@ -445,31 +518,31 @@ namespace UnitTesting
             for (int i = 0; i < arraySize; i++)
             {
                 Console.WriteLine($"Name: {dataPointsArray[i].Name,-20} | Data Type: {dataPointsArray[i].DataType,-9} | " +
-                    $"Scope: {dataPointsArray[i].Usage,-7} | Value: {dataPointsArray[i].Value,-20} " +
-                    $"| Byte Position: {dataPointsArray[i].BytePosition,-3} | Bool Position: {dataPointsArray[i].BoolPosition}");
+                    $"Scope: {dataPointsArray[i].Usage,-7} | Required: {dataPointsArray[i].Required,-5} | " +
+                    $"Visible: {dataPointsArray[i].Visible,-5} |  Value: {dataPointsArray[i].Value,-20} | " +
+                    $"Byte Position: {dataPointsArray[i].BytePosition,-3} | Bool Position: {dataPointsArray[i].BoolPosition}");
             }
         }
 
-        private static AOI_Parameters[] GetAOIParameters(string filePath)
+        private static AOIParameters[] Get_AOIParameters(string filePath)
         {
-            // DataPoint[] returnDataPoints = new DataPoint[2];
-            int paramCount;
-            AOI_Parameters[] returnDataPoints;
+            int parameterCount;
+            AOIParameters[] returnDataPoints;
 
             FileInfo existingFile = new FileInfo(filePath);
             using (ExcelPackage package = new ExcelPackage(existingFile))
             {
-                paramCount = GetPopulatedRowCount(filePath, 2) - 6;
-                returnDataPoints = new AOI_Parameters[paramCount];
+                parameterCount = GetPopulatedRowCount(filePath, 2) - 6;
+                returnDataPoints = new AOIParameters[parameterCount];
 
                 ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
-                for (int row = 0; row < paramCount; row++)
+                for (int row = 0; row < parameterCount; row++)
                 {
                     var paramName = worksheet.Cells[row + 20, 2].Value.ToString()!.Trim();
                     var paramDataType = worksheet.Cells[row + 20, 3].Value.ToString()!.Trim();
                     var paramScope = worksheet.Cells[row + 20, 4].Value.ToString()!.Trim();
 
-                    AOI_Parameters dataPoint = new AOI_Parameters();
+                    AOIParameters dataPoint = new AOIParameters();
                     dataPoint.Name = paramName;
                     dataPoint.DataType = paramDataType;
                     dataPoint.Usage = paramScope;
@@ -477,6 +550,27 @@ namespace UnitTesting
                     returnDataPoints[row] = dataPoint;
                 }
             }
+            return returnDataPoints;
+        }
+
+
+        private static AOIParameters[] Get_AOIParameters_FromL5X(string l5xPath)
+        {
+            XDocument xDoc = XDocument.Load(l5xPath);
+            int parameterCount = xDoc.Descendants("Parameters").FirstOrDefault().Elements().Count();
+            AOIParameters[] returnDataPoints = new AOIParameters[parameterCount];
+            int paramIndex = 0;
+
+            foreach (var p in xDoc.Descendants("Parameter"))
+            {
+                returnDataPoints[paramIndex].Name = p.Attribute("Name").Value;
+                returnDataPoints[paramIndex].DataType = p.Attribute("DataType").Value;
+                returnDataPoints[paramIndex].Usage = p.Attribute("Usage").Value;
+                returnDataPoints[paramIndex].Required = ToBoolean(p.Attribute("Required").Value);
+                returnDataPoints[paramIndex].Visible = ToBoolean(p.Attribute("Visible").Value);
+                paramIndex++;
+            }
+
             return returnDataPoints;
         }
         #endregion
@@ -1061,7 +1155,7 @@ namespace UnitTesting
             }
         }
 
-        private static async Task SetSingleValue_UDTorAOI(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, AOI_Parameters[] input_TagDataArray, LogixProject project)
+        private static async Task SetSingleValue_UDTorAOI(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, AOIParameters[] input_TagDataArray, LogixProject project)
         {
             ByteString input_ByteString = Get_UDTorAOI_ByteString_Sync(aoiTagPath, project, mode);
             byte[] new_byteArray = input_ByteString.ToByteArray();
@@ -1168,10 +1262,10 @@ namespace UnitTesting
             return type;
         }
 
-        private static AOI_Parameters[] Get_UDTorAOI(AOI_Parameters[] input_TagDataArray, ByteString input_AOIorUDT_ByteString, bool printout)
+        private static AOIParameters[] Get_AOIParameterValues(AOIParameters[] input_TagDataArray, ByteString input_AOIorUDT_ByteString, bool printout)
         {
             // initialize values needed for this method
-            AOI_Parameters[] output_TagDataArray = input_TagDataArray;
+            AOIParameters[] output_TagDataArray = input_TagDataArray;
             byte[] input_bytearray = input_AOIorUDT_ByteString.ToByteArray();
             int byteStartPosition_InputByteArray = 0;
             int boolStartPosition_InputByteArray = 0;
