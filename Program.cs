@@ -65,9 +65,8 @@ namespace UnitTesting
             AddElementToComplexElement(rungXML, "Tag", "Data");
             AddAttributeToComplexElement(rungXML, "Data", "Format", "L5K");
 
-            CreateCData(rungXML, "Data", "test");
             string cdataInfo = CreateCDATAfromXML(rungXML);
-            Console.WriteLine("cdataInfo: " + cdataInfo);
+            CreateCData(rungXML, "Data", cdataInfo);
 
 
 
@@ -627,35 +626,70 @@ namespace UnitTesting
                 XDocument doc = XDocument.Load(xmlFilePath);
 
                 // Find all "Parameter" elements
-                var parameterElements = doc.Descendants("Parameter");
-                var localtagsElements = doc.Descendants("LocalTags");
-
-                // Initialize a list to store CDATA information
-                var parameterCDATA = parameterElements
+                var parameterElements = doc
+                    .Descendants("Parameters")
+                    .Elements("Parameter")
+                    .Where(param => param.Attribute("DataType")?.Value != "BOOL")
                     .Descendants("DefaultData")
                     .Where(defaultData => defaultData.FirstNode is XCData)
                     .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
                     .ToList();
+                //.Where(param => param.Attribute("DataType").Value != "BOOL");
+                //Console.WriteLine("test bool param: " + XDocument.Load(xmlFilePath).Descendants("Parameters").ElementAt(0).Attribute("DataType").Value);
 
-                // Join the CDATA information with commas
-                string joined_pCDATA = string.Join(",", parameterCDATA);
-                Console.WriteLine("joined_pCDATA: " + joined_pCDATA);
+                //foreach (var parameterElement in parameterElements)
+                //{
+                //    Console.WriteLine("\n\nSTART:\n" + parameterElement);
+                //}
+                //Console.WriteLine("\n\nSTART:\n" + parameterElements.Descendants("Parameter");
 
-                // Initialize a list to store CDATA information
-                var localtagCDATA = localtagsElements
-                    .Descendants("DefaultData")
-                    .Where(defaultData => defaultData.FirstNode is XCData)
-                    .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
-                    .ToList();
 
-                // Join the CDATA information with commas
-                string joined_ltCDATA = string.Join(",", localtagCDATA);
-                Console.WriteLine("joined_ltCDATA: " + joined_ltCDATA);
+                //// Initialize a list to store CDATA information
+                //var parameterCDATA = doc
+                //    .Elements("Parameter")
+                //    .Where(param => param.Attribute("DataType")?.Value != "BOOL");
+                ////.Select(param => param.Element("DefaultData")?.Value.Trim());
+                ////.Descendants("DefaultData")
+                ////.Where(defaultData => defaultData.FirstNode is XCData)
+                ////.Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
+                ////.ToList();
 
-                return "1," + joined_pCDATA + "," + joined_ltCDATA;
+                //var filteredParameters = parameterElements
+                //    .Descendants("DefaultData")
+                //    .Where(defaultData => defaultData.FirstNode is XCData)
+                //    .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
+                //    .ToList();
+                string result = string.Join(",", parameterElements);
+                Console.WriteLine($"CDATA information: {result}");
+
+
+                //// Join the CDATA information with commas
+                //string joined_pCDATA = string.Join(",", parameterCDATA);
+                //Console.WriteLine("\n\n\njoined_pCDATA: " + joined_pCDATA);
+
+                //// Find all "LocalTag" elements
+                //var localtagsElements = doc
+                //    .Elements("LocalTag")
+                //    .Where(defaultData => defaultData.Attribute("DataType").Value != "BOOL");
+
+                //// Initialize a list to store CDATA information
+                //var localtagCDATA = localtagsElements
+                //    .Descendants("DefaultData")
+                //    .Where(defaultData => defaultData.FirstNode is XCData)
+                //    .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
+                //    .ToList();
+
+                //// Join the CDATA information with commas
+                //string joined_ltCDATA = string.Join(",", localtagCDATA);
+
+                string returnString = "";
+                //string returnString = "1," + joined_pCDATA + "," + joined_ltCDATA;
+                //Console.WriteLine("\n\n\n\nreturnString: " + returnString);
+                return returnString;
             }
             catch (Exception e)
             {
+                Console.WriteLine("ERROR: " + e.Message);
                 return e.Message;
             }
         }
