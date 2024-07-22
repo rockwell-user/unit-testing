@@ -66,6 +66,14 @@ namespace UnitTesting
             AddAttributeToComplexElement(rungXML, "Data", "Format", "L5K");
 
             CreateCData(rungXML, "Data", "test");
+            string cdataInfo = CreateCDATAfromXML(rungXML);
+            Console.WriteLine("cdataInfo: " + cdataInfo);
+
+
+
+
+
+
 
 
             // THE ONLY PARAMETER THAT WILL NEED TO BE MODIFIED (MAYBE PASS THIS IN FROM JENKINS)
@@ -608,6 +616,47 @@ namespace UnitTesting
             catch (Exception ex)
             {
                 Console.WriteLine($"An error occurred: {ex.Message}");
+            }
+        }
+
+        public static string CreateCDATAfromXML(string xmlFilePath)
+        {
+            try
+            {
+                // Load the XML document
+                XDocument doc = XDocument.Load(xmlFilePath);
+
+                // Find all "Parameter" elements
+                var parameterElements = doc.Descendants("Parameter");
+                var localtagsElements = doc.Descendants("LocalTags");
+
+                // Initialize a list to store CDATA information
+                var parameterCDATA = parameterElements
+                    .Descendants("DefaultData")
+                    .Where(defaultData => defaultData.FirstNode is XCData)
+                    .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
+                    .ToList();
+
+                // Join the CDATA information with commas
+                string joined_pCDATA = string.Join(",", parameterCDATA);
+                Console.WriteLine("joined_pCDATA: " + joined_pCDATA);
+
+                // Initialize a list to store CDATA information
+                var localtagCDATA = localtagsElements
+                    .Descendants("DefaultData")
+                    .Where(defaultData => defaultData.FirstNode is XCData)
+                    .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
+                    .ToList();
+
+                // Join the CDATA information with commas
+                string joined_ltCDATA = string.Join(",", localtagCDATA);
+                Console.WriteLine("joined_ltCDATA: " + joined_ltCDATA);
+
+                return "1," + joined_pCDATA + "," + joined_ltCDATA;
+            }
+            catch (Exception e)
+            {
+                return e.Message;
             }
         }
         #endregion
