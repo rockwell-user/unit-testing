@@ -24,12 +24,12 @@ namespace UnitTesting
     {
         struct AOIParameters
         {
-            public string Name { get; set; }
-            public string DataType { get; set; }
-            public string Usage { get; set; }
-            public bool Required { get; set; }
-            public bool Visible { get; set; }
-            public string Value { get; set; }
+            public string? Name { get; set; }
+            public string? DataType { get; set; }
+            public string? Usage { get; set; }
+            public bool? Required { get; set; }
+            public bool? Visible { get; set; }
+            public string? Value { get; set; }
             public int BytePosition { get; set; }
             public int BoolPosition { get; set; }
         }
@@ -40,7 +40,7 @@ namespace UnitTesting
             string rungXML = CopyXmlFile(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
             Console.WriteLine("rungXML filepath: " + rungXML);
 
-            string aoiName = GetAttributeValue(rungXML, "AddOnInstructionDefinition", "Name");
+            string aoiName = Get_AttributeValue(rungXML, "AddOnInstructionDefinition", "Name");
 
             //Modify top half
             DeleteAttributeFromRoot(rungXML, "TargetName");
@@ -65,14 +65,51 @@ namespace UnitTesting
             AddElementToComplexElement(rungXML, "Tag", "Data");
             AddAttributeToComplexElement(rungXML, "Data", "Format", "L5K");
 
-            string cdataInfo = CreateCDATAfromXML(rungXML);
-            CreateCData(rungXML, "Data", cdataInfo);
+            string cdataInfo_forData = Get_CDATAfromXML_forData(rungXML);
+            CreateCData(rungXML, "Data", cdataInfo_forData);
 
+            AddElementToComplexElement(rungXML, "Tag", "Data");
+            AddAttributeToComplexElement(rungXML, "Data", "Format", "Decorated");
 
+            AddElementToComplexElement(rungXML, "Data", "Structure");
+            AddAttributeToComplexElement(rungXML, "Structure", "DataType", aoiName);
 
+            //AddAttributeToComplexElement(rungXML, "DataValueMember", "Name", aoiName);
+            List<Dictionary<string, string>> attributesList = Get_DataValueMemberInfofromXML(rungXML);
 
+            //foreach (var attributes in attributesList)
+            //{
+            //    Console.WriteLine($"Name: {attributes["Name"]}, DataType: {attributes["DataType"]}, Radix: {attributes["Radix"]}");
+            //}
 
+            AddComplexElementsToXml(rungXML, attributesList);
 
+            AddElementToComplexElement(rungXML, "Controller", "Programs");
+            AddAttributeToComplexElement(rungXML, "Programs", "Use", "Context");
+
+            AddElementToComplexElement(rungXML, "Programs", "Program");
+            AddAttributeToComplexElement(rungXML, "Program", "Use", "Context");
+            AddAttributeToComplexElement(rungXML, "Program", "Name", "P00_AOI_Testing");
+
+            AddElementToComplexElement(rungXML, "Program", "Routines");
+            AddAttributeToComplexElement(rungXML, "Routines", "Use", "Context");
+
+            AddElementToComplexElement(rungXML, "Routines", "Routine");
+            AddAttributeToComplexElement(rungXML, "Routine", "Use", "Context");
+            AddAttributeToComplexElement(rungXML, "Routine", "Name", "R00_AOI_Testing");
+
+            AddElementToComplexElement(rungXML, "Routine", "RLLContent");
+            AddAttributeToComplexElement(rungXML, "RLLContent", "Use", "Context");
+
+            AddElementToComplexElement(rungXML, "RLLContent", "Rung");
+            AddAttributeToComplexElement(rungXML, "Rung", "Use", "Target");
+            AddAttributeToComplexElement(rungXML, "Rung", "Number", "0");
+            AddAttributeToComplexElement(rungXML, "Rung", "Type", "N");
+
+            AddElementToComplexElement(rungXML, "Rung", "Text");
+
+            string cdataInfo_forText = Get_CDATAfromXML_forText(rungXML);
+            CreateCData(rungXML, "Text", cdataInfo_forText);
 
 
             // THE ONLY PARAMETER THAT WILL NEED TO BE MODIFIED (MAYBE PASS THIS IN FROM JENKINS)
@@ -80,7 +117,7 @@ namespace UnitTesting
             string unitTestExcelWorkbooks_folderPath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest";
             string exampleTestReportsFolder_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports";
             AOIParameters[] testParams = Get_AOIParameters_FromL5X(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
-            Show_AOIParameters(testParams);
+            Print_AOIParameters(testParams);
 
 
             // Title Banner 
@@ -372,7 +409,7 @@ namespace UnitTesting
             }
 
             // Get the directory and file name from the source file path
-            string directory = Path.GetDirectoryName(sourceFilePath);
+            string? directory = Path.GetDirectoryName(sourceFilePath);
             string fileName = Path.GetFileNameWithoutExtension(sourceFilePath);
             string extension = Path.GetExtension(sourceFilePath);
 
@@ -386,18 +423,18 @@ namespace UnitTesting
             return newFilePath;
         }
 
-        public static string GetAttributeValue(string xmlFilePath, string complexElementName, string attributeName)
+        public static string? Get_AttributeValue(string xmlFilePath, string complexElementName, string attributeName)
         {
             // Load the XML document
             XDocument xdoc = XDocument.Load(xmlFilePath);
 
             // Find the complex element by name
-            XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
+            XElement? complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
 
             if (complexElement != null)
             {
                 // Find the attribute within the complex element
-                XAttribute attribute = complexElement.Attribute(attributeName);
+                XAttribute? attribute = complexElement.Attribute(attributeName);
                 if (attribute != null)
                 {
                     // Return the attribute value
@@ -533,7 +570,7 @@ namespace UnitTesting
                 XDocument xdoc = XDocument.Load(xmlFilePath);
 
                 // Find the complex element by name
-                XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
+                XElement complexElement = xdoc.Descendants(complexElementName).LastOrDefault();
 
                 if (complexElement != null)
                 {
@@ -563,7 +600,7 @@ namespace UnitTesting
                 XDocument xdoc = XDocument.Load(xmlFilePath);
 
                 // Find the complex element by name
-                XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
+                XElement complexElement = xdoc.Descendants(complexElementName).LastOrDefault();
 
                 if (complexElement != null)
                 {
@@ -595,7 +632,7 @@ namespace UnitTesting
                 XDocument xdoc = XDocument.Load(xmlFilePath);
 
                 // Find the complex element by name
-                XElement complexElement = xdoc.Descendants(complexElementName).FirstOrDefault();
+                XElement complexElement = xdoc.Descendants(complexElementName).LastOrDefault();
 
                 if (complexElement != null)
                 {
@@ -618,7 +655,7 @@ namespace UnitTesting
             }
         }
 
-        public static string CreateCDATAfromXML(string xmlFilePath)
+        public static string Get_CDATAfromXML_forData(string xmlFilePath)
         {
             try
             {
@@ -634,63 +671,120 @@ namespace UnitTesting
                     .Where(defaultData => defaultData.FirstNode is XCData)
                     .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
                     .ToList();
-                //.Where(param => param.Attribute("DataType").Value != "BOOL");
-                //Console.WriteLine("test bool param: " + XDocument.Load(xmlFilePath).Descendants("Parameters").ElementAt(0).Attribute("DataType").Value);
 
-                //foreach (var parameterElement in parameterElements)
-                //{
-                //    Console.WriteLine("\n\nSTART:\n" + parameterElement);
-                //}
-                //Console.WriteLine("\n\nSTART:\n" + parameterElements.Descendants("Parameter");
+                string joined_pCDATA = string.Join(",", parameterElements);
 
+                // Find all "LocalTag" elements
+                var localtagElements = doc
+                    .Descendants("LocalTags")
+                    .Elements("LocalTag")
+                    .Where(param => param.Attribute("DataType")?.Value != "BOOL")
+                    .Descendants("DefaultData")
+                    .Where(defaultData => defaultData.FirstNode is XCData)
+                    .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
+                    .ToList();
 
-                //// Initialize a list to store CDATA information
-                //var parameterCDATA = doc
-                //    .Elements("Parameter")
-                //    .Where(param => param.Attribute("DataType")?.Value != "BOOL");
-                ////.Select(param => param.Element("DefaultData")?.Value.Trim());
-                ////.Descendants("DefaultData")
-                ////.Where(defaultData => defaultData.FirstNode is XCData)
-                ////.Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
-                ////.ToList();
+                string joined_ltCDATA = string.Join(",", localtagElements);
 
-                //var filteredParameters = parameterElements
-                //    .Descendants("DefaultData")
-                //    .Where(defaultData => defaultData.FirstNode is XCData)
-                //    .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
-                //    .ToList();
-                string result = string.Join(",", parameterElements);
-                Console.WriteLine($"CDATA information: {result}");
-
-
-                //// Join the CDATA information with commas
-                //string joined_pCDATA = string.Join(",", parameterCDATA);
-                //Console.WriteLine("\n\n\njoined_pCDATA: " + joined_pCDATA);
-
-                //// Find all "LocalTag" elements
-                //var localtagsElements = doc
-                //    .Elements("LocalTag")
-                //    .Where(defaultData => defaultData.Attribute("DataType").Value != "BOOL");
-
-                //// Initialize a list to store CDATA information
-                //var localtagCDATA = localtagsElements
-                //    .Descendants("DefaultData")
-                //    .Where(defaultData => defaultData.FirstNode is XCData)
-                //    .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
-                //    .ToList();
-
-                //// Join the CDATA information with commas
-                //string joined_ltCDATA = string.Join(",", localtagCDATA);
-
-                string returnString = "";
-                //string returnString = "1," + joined_pCDATA + "," + joined_ltCDATA;
-                //Console.WriteLine("\n\n\n\nreturnString: " + returnString);
+                string returnString = "[1," + joined_pCDATA + "," + joined_ltCDATA + "]";
+                Console.WriteLine("\n\n\n\nreturnString: " + returnString);
                 return returnString;
             }
             catch (Exception e)
             {
                 Console.WriteLine("ERROR: " + e.Message);
                 return e.Message;
+            }
+        }
+
+        public static string Get_CDATAfromXML_forText(string xmlFilePath)
+        {
+            string? aoiName = Get_AttributeValue(xmlFilePath, "AddOnInstructionDefinition", "Name");
+            StringBuilder sb = new StringBuilder();
+            try
+            {
+                // Load the XML document
+                XDocument doc = XDocument.Load(xmlFilePath);
+
+                // Find all "Parameter" elements
+                var parameterElements = doc.Descendants("Parameter");
+
+                foreach (var param in parameterElements)
+                {
+                    XAttribute nameAttribute = param.Attribute("Name");
+
+                    if ((nameAttribute != null) && (param.Attribute("Required").Value == "true"))
+                        sb.Append($",AOI_{aoiName}.{nameAttribute.Value}");
+                }
+
+                string returnString = $"{aoiName}(AOI_{aoiName}{sb});";
+                Console.WriteLine("\n\n\n\nreturnString: " + returnString);
+                return returnString;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("ERROR: " + e.Message);
+                return e.Message;
+            }
+        }
+
+        public static List<Dictionary<string, string>> Get_DataValueMemberInfofromXML(string xmlFilePath)
+        {
+            List<Dictionary<string, string>> attributeList = new List<Dictionary<string, string>>();
+
+            try
+            {
+                XDocument doc = XDocument.Load(xmlFilePath);
+
+                foreach (var paramElem in doc.Descendants("Parameter"))
+                {
+                    Dictionary<string, string> attributes = new Dictionary<string, string>
+                {
+                    { "Name", paramElem.Attribute("Name")?.Value },
+                    { "DataType", paramElem.Attribute("DataType")?.Value },
+                    { "Radix", paramElem.Attribute("Radix")?.Value }
+                };
+
+                    attributeList.Add(attributes);
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error: {e.Message}");
+            }
+
+            return attributeList;
+        }
+
+        public static string AddComplexElementsToXml(string xmlFilePath, List<Dictionary<string, string>> attributesList)
+        {
+            try
+            {
+                // Add the new attributes
+                foreach (var attributes in attributesList)
+                {
+                    AddElementToComplexElement(xmlFilePath, "Structure", "DataValueMember");
+
+                    AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Name", attributes["Name"]);
+
+                    AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "DataType", attributes["DataType"]);
+
+                    if (attributes["DataType"] != "BOOL")
+                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Radix", attributes["Radix"]);
+
+                    if (attributes["Name"] == "EnableIn")
+                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Value", "1");
+                    else if (attributes["DataType"] == "REAL")
+                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Value", "0.0");
+                    else
+                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Value", "0");
+                }
+
+                return "Complex elements added successfully.";
+            }
+            catch (Exception e)
+            {
+                return $"Error: {e.Message}";
             }
         }
         #endregion
@@ -761,7 +855,7 @@ namespace UnitTesting
             }
         }
 
-        private static void Show_AOIParameters(AOIParameters[] dataPointsArray)
+        private static void Print_AOIParameters(AOIParameters[] dataPointsArray)
         {
             int arraySize = dataPointsArray.Length;
             Console.WriteLine("arraySize: " + arraySize);
