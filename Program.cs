@@ -36,17 +36,16 @@ namespace UnitTesting
 
         static async Task Main()
         {
-            // XML FILE MANIPULATIONS
-            string rungXML = CopyXmlFile(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X", true);
-            ConvertXML_AOItoRUNG(rungXML, true);
+
 
 
             // THE ONLY PARAMETER THAT WILL NEED TO BE MODIFIED (MAYBE PASS THIS IN FROM JENKINS)
             // Parameter to be specified in jenkins
+            // test_filePath1 is the name of the generated program target xml
             string unitTestExcelWorkbooks_folderPath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest";
             string exampleTestReportsFolder_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports";
             AOIParameters[] testParams = Get_AOIParameters_FromL5X(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
-            Print_AOIParameters(testParams);
+            //Print_AOIParameters(testParams);
 
 
             // Title Banner 
@@ -130,100 +129,75 @@ namespace UnitTesting
                 Console.WriteLine($"SUCCESS: file created at {acdPath}");
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE creating & opening ACD file\n---");
 
-                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START uploading ACD file...");
-                //string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\", DateTime.Now.ToString("yyyyMMddHHmmss") + "_AOI_UnitTest.ACD");
-                //await LogixProject.UploadToNewProjectAsync(acdPath, commPath);
-                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS uploading ACD file\n---");
-
-                //string export_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\AOI_UnitTestTemplate.ACD";
-                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START exporting program file...");
-                //string xPath2 = @"Controller/Programs";
-                ////string export_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\NEW_P00_AOI_Testing_Program.L5X";
-                //await project.PartialExportToXmlFileAsync(xPath2, export_filePath);
-                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE exporting program file\n---");
-
-
-
-                //string acdPath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles\UnitTest_AOI.ACD"; // USED DURING DEV
-
-
-
                 //// =========================================================================
-                //// LOGGER INFO
+                //// LOGGER INFO (UNCOMMENT IF TROUBLESHOOTING)
+                //// Note: may need to add using RockwellAutomation.LogixDesigner.Logging;
                 //var logger = new StdOutEventLogger();
                 //project.AddEventHandler(logger);
                 //// =========================================================================
 
-                //Console.WriteLine("\n\n\n\n");
-
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] START preparing programmatically created ACD...");
                 //Console.WriteLine("\n\n\n\n");
+                string tempFolder = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\";
 
-                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\NEW_P00_AOI_Testing_Program.L5X";
-                string xPath = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
-                                                        //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\P00_AOI_Testing_Program.L5X";
-                string filePath1 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\PROGRAMTARGET_P00_AOI_Testing_Program.L5X";
-                await project.PartialImportFromXmlFileAsync(xPath, filePath1, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-                //Console.WriteLine("\n\n\n\n");
+                // Create an empty program in the unscheduled folder of new ACD project.
+                string emptyProgramContents_L5X = @"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
+                    <RSLogix5000Content SchemaRevision=""1.0"" SoftwareRevision=""36.00"" TargetName=""P00_AOI_Testing"" TargetType=""Program"" ContainsContext=""true"" ExportDate=""Thu Jul 18 10:59:46 2024"" ExportOptions=""References NoRawData L5KData DecoratedData Context Dependencies ForceProtectedEncoding AllProjDocTrans"">
+                        <Controller Use=""Context"" Name=""UnitTest_Controller"">
+                            <Programs Use=""Context"">
+                                <Program Use=""Target"" Name=""P00_AOI_Testing"" TestEdits=""false"" MainRoutineName=""R00_AOI_Testing"" Disabled=""false"" UseAsFolder=""false"">
+                                    <Tags/>
+                                    <Routines>
+                                        <Routine Name=""R00_AOI_Testing"" Type=""RLL""/>
+                                    </Routines>
+                                </Program>
+                            </Programs>
+                        </Controller>
+                    </RSLogix5000Content>";
+                string emptyProgram_L5Xfilepath = tempFolder + "generated_programtarget.L5X";
+                File.WriteAllText(emptyProgram_L5Xfilepath, emptyProgramContents_L5X);
+                string xPath_programs = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
+                await project.PartialImportFromXmlFileAsync(xPath_programs, emptyProgram_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
 
-                string filePath2 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\MyTaskExp.L5X";
+
+                string taskContents_L5X = @"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
+                    <RSLogix5000Content SchemaRevision=""1.0"" SoftwareRevision=""36.00"" TargetName=""ImpExp"" TargetType=""Task"" ContainsContext=""true"" ExportDate=""Thu Jul 18 16:09:53 2024"" ExportOptions=""References NoRawData L5KData DecoratedData Context ProductDefinedTypes IOTags Dependencies ForceProtectedEncoding AllProjDocTrans"">
+                        <Controller Use=""Context"" Name=""UnitTest_Controller"">
+                            <Programs Use=""Context"">
+                                <Program Use=""Reference"" Name=""P00_AOI_Testing"">
+                                </Program>
+                            </Programs>
+                            <Tasks Use=""Context"">
+                                <Task Use=""Target"" Name=""T00_AOI_Testing"" Type=""CONTINUOUS"" Priority=""10"" Watchdog=""500"" DisableUpdateOutputs=""false"" InhibitTask=""false"">
+                                    <ScheduledPrograms>
+                                        <ScheduledProgram Name=""P00_AOI_Testing""/>
+                                    </ScheduledPrograms>
+                                </Task>
+                            </Tasks>
+                        </Controller>
+                    </RSLogix5000Content>";
+
+                string task_L5Xfilepath = tempFolder + "generated_tasktarget.L5X";
+                File.WriteAllText(task_L5Xfilepath, taskContents_L5X);
                 string xPath2 = @"Controller/Tasks";  // include program in task
-                await project.PartialImportFromXmlFileAsync(xPath2, filePath2, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-                //Console.WriteLine("\n\n\n\n");
+                await project.PartialImportFromXmlFileAsync(xPath2, task_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
 
                 string filePath3 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
                 string xPath3 = @"Controller/AddOnInstructionDefinitions";
                 await project.PartialImportFromXmlFileAsync(xPath3, filePath3, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-                //Console.WriteLine("\n\n\n\n");
 
-                string filePath4 = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\Rung0_from_R00_AOI_Testing.L5X";
-                //string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines/Routine[@Name='R00_AOI_Testing']/RLLContent/Rung[@Number>='0]";
-                //string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines/Routine[@Name='R00_AOI_Testing']/RLLContent/Rung[@Number>='1]";
-                //string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines/Routine[@Name='R00_AOI_Testing']";
-                //string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines/Routine[@Name='R00_AOI_Testing']/RLLContent/Rung[@Number='0']";
+                // XML FILE MANIPULATIONS
+                string rungXML = CopyXmlFile(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X", false);
+                ConvertXML_AOItoRUNG(rungXML, true);
                 string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines";
-                await project.PartialImportFromXmlFileAsync(xPath4, filePath4, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+                await project.PartialImportFromXmlFileAsync(xPath4, rungXML, LogixProject.ImportCollisionOptions.OverwriteOnColl);
                 await project.SaveAsync();
-                //Console.WriteLine("\n\n\n\n");
 
+
+                File.Delete(emptyProgram_L5Xfilepath);
+                File.Delete(task_L5Xfilepath);
+                //File.Delete(rungXML);
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE preparing programmatically created ACD\n---");
-                //Console.WriteLine("\n\n\n\n");
-
-
-
-
-
-
-
-                //XmlDocument doc1 = new XmlDocument();
-                //doc1.Load(filePath);
-                //XmlNode node1 = doc1.DocumentElement.SelectSingleNode("/")
-
-                //XmlDocument doc2 = new XmlDocument();
-                //doc2.Load(filePath2);
-
-
-
-                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] START importing AOI.L5X...");
-                ////string xPath = @"Controller/Programs/Program[@Name='P00_AOI_Testing']";
-                ////string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
-                //string xPath = @"Controller"; // didn't work with P00_AOI_Testing_Program.L5X
-                // string xPath = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
-                //string xPath = @"Controller/Programs"; 
-                // string xPath = @"/RSLogix5000Content/Controller/Tasks/Task[@Name='T00_AOI_Testing']";
-                //string xPath = @"/RSLogix5000Content/Controller/Tasks";
-                ////string xPath = @"Controller/Tasks";
-                //string xPath = @"RSLogix5000Content/Controller/Tasks"; // didn't work with P00_AOI_Testing_Program.L5X
-                // string xPath = @"RSLogix5000Content/Controller"; // didn't work with P00_AOI_Testing_Program.L5X
-                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\P00_AOI_Testing_Program.L5X";
-                ////string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\20240716140136_AOIunittest.L5X";
-                //string filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
-                //string targetName = @"/RSLogix5000Content/Controller/Programs/Program"; // PartialImportWithTargetFromXmlFile does not allow to import XML xPath: /RSLogix5000Content/Controller/Programs
-                //string targetName = @"/RSLogix5000Content/Controller/Programs"; //PartialImportWithTargetFromXmlFile does not allow to import XML xPath: /RSLogix5000Content/Controller/Programs
-                //string xPath = @"Controller/Tasks/Task[@Name='T00_AOI_Testing']"; // Invalid import target for the XML target type. (C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles\UnitTest_AOI.ACD)
-                //string targetName = @"/RSLogix5000Content"; //PartialImportWithTargetFromXmlFile does not allow to import XML xPath: /RSLogix5000Content/Controller/Programs
-                //await project.PartialImportWithTargetFromXmlFileAsync(xPath, targetName, filePath, LogixProject.PartialImportOption.FinalizeEdits);
-                //Console.WriteLine($"[{DateTime.Now.ToString("T")}] SUCCESS importing AOI.L5X\n---");
 
                 // Change controller mode to program & verify.
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] START changing controller to PROGRAM...");
