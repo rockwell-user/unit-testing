@@ -37,79 +37,8 @@ namespace UnitTesting
         static async Task Main()
         {
             // XML FILE MANIPULATIONS
-            string rungXML = CopyXmlFile(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
-            Console.WriteLine("rungXML filepath: " + rungXML);
-
-            string aoiName = Get_AttributeValue(rungXML, "AddOnInstructionDefinition", "Name");
-
-            //Modify top half
-            DeleteAttributeFromRoot(rungXML, "TargetName");
-            DeleteAttributeFromRoot(rungXML, "TargetRevision");
-            DeleteAttributeFromRoot(rungXML, "TargetLastEdited");
-            DeleteAttributeFromComplexElement(rungXML, "AddOnInstructionDefinition", "Use");
-            ChangeComplexElementAttribute(rungXML, "RSLogix5000Content", "TargetCount", "1");
-            ChangeComplexElementAttribute(rungXML, "RSLogix5000Content", "TargetType", "Rung");
-
-            // Create bottom half
-            AddElementToComplexElement(rungXML, "Controller", "Tags");
-            AddAttributeToComplexElement(rungXML, "Tags", "Use", "Context");
-
-            AddElementToComplexElement(rungXML, "Tags", "Tag");
-            AddAttributeToComplexElement(rungXML, "Tag", "Name", "AOI_" + aoiName);
-            AddAttributeToComplexElement(rungXML, "Tag", "TagType", "Base");
-            AddAttributeToComplexElement(rungXML, "Tag", "DataType", aoiName);
-            AddAttributeToComplexElement(rungXML, "Tag", "Constant", "false");
-            AddAttributeToComplexElement(rungXML, "Tag", "ExternalAccess", "Read/Write");
-            AddAttributeToComplexElement(rungXML, "Tag", "OpcUaAccess", "None");
-
-            AddElementToComplexElement(rungXML, "Tag", "Data");
-            AddAttributeToComplexElement(rungXML, "Data", "Format", "L5K");
-
-            string cdataInfo_forData = Get_CDATAfromXML_forData(rungXML);
-            CreateCData(rungXML, "Data", cdataInfo_forData);
-
-            AddElementToComplexElement(rungXML, "Tag", "Data");
-            AddAttributeToComplexElement(rungXML, "Data", "Format", "Decorated");
-
-            AddElementToComplexElement(rungXML, "Data", "Structure");
-            AddAttributeToComplexElement(rungXML, "Structure", "DataType", aoiName);
-
-            //AddAttributeToComplexElement(rungXML, "DataValueMember", "Name", aoiName);
-            List<Dictionary<string, string>> attributesList = Get_DataValueMemberInfofromXML(rungXML);
-
-            //foreach (var attributes in attributesList)
-            //{
-            //    Console.WriteLine($"Name: {attributes["Name"]}, DataType: {attributes["DataType"]}, Radix: {attributes["Radix"]}");
-            //}
-
-            AddComplexElementsToXml(rungXML, attributesList);
-
-            AddElementToComplexElement(rungXML, "Controller", "Programs");
-            AddAttributeToComplexElement(rungXML, "Programs", "Use", "Context");
-
-            AddElementToComplexElement(rungXML, "Programs", "Program");
-            AddAttributeToComplexElement(rungXML, "Program", "Use", "Context");
-            AddAttributeToComplexElement(rungXML, "Program", "Name", "P00_AOI_Testing");
-
-            AddElementToComplexElement(rungXML, "Program", "Routines");
-            AddAttributeToComplexElement(rungXML, "Routines", "Use", "Context");
-
-            AddElementToComplexElement(rungXML, "Routines", "Routine");
-            AddAttributeToComplexElement(rungXML, "Routine", "Use", "Context");
-            AddAttributeToComplexElement(rungXML, "Routine", "Name", "R00_AOI_Testing");
-
-            AddElementToComplexElement(rungXML, "Routine", "RLLContent");
-            AddAttributeToComplexElement(rungXML, "RLLContent", "Use", "Context");
-
-            AddElementToComplexElement(rungXML, "RLLContent", "Rung");
-            AddAttributeToComplexElement(rungXML, "Rung", "Use", "Target");
-            AddAttributeToComplexElement(rungXML, "Rung", "Number", "0");
-            AddAttributeToComplexElement(rungXML, "Rung", "Type", "N");
-
-            AddElementToComplexElement(rungXML, "Rung", "Text");
-
-            string cdataInfo_forText = Get_CDATAfromXML_forText(rungXML);
-            CreateCData(rungXML, "Text", cdataInfo_forText);
+            string rungXML = CopyXmlFile(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X", true);
+            ConvertXML_AOItoRUNG(rungXML, true);
 
 
             // THE ONLY PARAMETER THAT WILL NEED TO BE MODIFIED (MAYBE PASS THIS IN FROM JENKINS)
@@ -400,10 +329,87 @@ namespace UnitTesting
 
 
         #region METHODS: manipulate L5X
-        public static string CopyXmlFile(string sourceFilePath)
+        public static void ConvertXML_AOItoRUNG(string xmlFilePath, bool printOut)
+        {
+            Console.WriteLine("rungXML filepath: " + xmlFilePath);
+
+            string aoiName = Get_AttributeValue(xmlFilePath, "AddOnInstructionDefinition", "Name", printOut);
+
+            //Modify top half
+            DeleteAttributeFromRoot(xmlFilePath, "TargetName", printOut);
+            DeleteAttributeFromRoot(xmlFilePath, "TargetRevision", printOut);
+            DeleteAttributeFromRoot(xmlFilePath, "TargetLastEdited", printOut);
+            DeleteAttributeFromComplexElement(xmlFilePath, "AddOnInstructionDefinition", "Use", printOut);
+            ChangeComplexElementAttribute(xmlFilePath, "RSLogix5000Content", "TargetCount", "1", printOut);
+            ChangeComplexElementAttribute(xmlFilePath, "RSLogix5000Content", "TargetType", "Rung", printOut);
+
+            // Create bottom half
+            AddElementToComplexElement(xmlFilePath, "Controller", "Tags", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Tags", "Use", "Context", printOut);
+
+            AddElementToComplexElement(xmlFilePath, "Tags", "Tag", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Tag", "Name", "AOI_" + aoiName, printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Tag", "TagType", "Base", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Tag", "DataType", aoiName, printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Tag", "Constant", "false", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Tag", "ExternalAccess", "Read/Write", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Tag", "OpcUaAccess", "None", printOut);
+
+            AddElementToComplexElement(xmlFilePath, "Tag", "Data", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Data", "Format", "L5K", printOut);
+
+            string cdataInfo_forData = Get_CDATAfromXML_forData(xmlFilePath, printOut);
+            AddCDATA(xmlFilePath, "Data", cdataInfo_forData, printOut);
+
+            AddElementToComplexElement(xmlFilePath, "Tag", "Data", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Data", "Format", "Decorated", printOut);
+
+            AddElementToComplexElement(xmlFilePath, "Data", "Structure", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Structure", "DataType", aoiName, printOut);
+
+            List<Dictionary<string, string>> attributesList = Get_DataValueMemberInfofromXML(xmlFilePath, printOut);
+            AddComplexElementsWithAttributesToXml(xmlFilePath, attributesList, printOut);
+
+            if (printOut)
+            {
+                foreach (var attributes in attributesList)
+                {
+                    Console.WriteLine($"Name: {attributes["Name"]}, DataType: {attributes["DataType"]}, Radix: {attributes["Radix"]}");
+                }
+            }
+
+            AddElementToComplexElement(xmlFilePath, "Controller", "Programs", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Programs", "Use", "Context", printOut);
+
+            AddElementToComplexElement(xmlFilePath, "Programs", "Program", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Program", "Use", "Context", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Program", "Name", "P00_AOI_Testing", printOut);
+
+            AddElementToComplexElement(xmlFilePath, "Program", "Routines", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Routines", "Use", "Context", printOut);
+
+            AddElementToComplexElement(xmlFilePath, "Routines", "Routine", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Routine", "Use", "Context", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Routine", "Name", "R00_AOI_Testing", printOut);
+
+            AddElementToComplexElement(xmlFilePath, "Routine", "RLLContent", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "RLLContent", "Use", "Context", printOut);
+
+            AddElementToComplexElement(xmlFilePath, "RLLContent", "Rung", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Rung", "Use", "Target", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Rung", "Number", "0", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Rung", "Type", "N", printOut);
+
+            AddElementToComplexElement(xmlFilePath, "Rung", "Text", printOut);
+
+            string cdataInfo_forText = Get_CDATAfromXML_forText(xmlFilePath, printOut);
+            AddCDATA(xmlFilePath, "Text", cdataInfo_forText, printOut);
+        }
+
+        public static string CopyXmlFile(string sourceFilePath, bool printOut)
         {
             // Check if the source file exists
-            if (!File.Exists(sourceFilePath))
+            if (!File.Exists(sourceFilePath) && (printOut))
             {
                 Console.WriteLine($"Source file '{sourceFilePath}' does not exist.");
             }
@@ -423,7 +429,7 @@ namespace UnitTesting
             return newFilePath;
         }
 
-        public static string? Get_AttributeValue(string xmlFilePath, string complexElementName, string attributeName)
+        public static string? Get_AttributeValue(string xmlFilePath, string complexElementName, string attributeName, bool printOut)
         {
             // Load the XML document
             XDocument xdoc = XDocument.Load(xmlFilePath);
@@ -454,7 +460,7 @@ namespace UnitTesting
         }
 
 
-        public Dictionary<string, string> CopyAttributes(string xmlFilePath, string elementName)
+        public Dictionary<string, string> CopyAttributes(string xmlFilePath, string elementName, bool printOut)
         {
             // Load the XML document
             XDocument xdoc = XDocument.Load(xmlFilePath);
@@ -473,7 +479,7 @@ namespace UnitTesting
             return attributesDictionary;
         }
 
-        public static void DeleteAttributeFromComplexElement(string xmlFilePath, string complexElementName, string attributeToDelete)
+        public static void DeleteAttributeFromComplexElement(string xmlFilePath, string complexElementName, string attributeToDelete, bool printOut)
         {
             try
             {
@@ -512,7 +518,7 @@ namespace UnitTesting
             }
         }
 
-        public static void DeleteAttributeFromRoot(string xmlFilePath, string attributeToDelete)
+        public static void DeleteAttributeFromRoot(string xmlFilePath, string attributeToDelete, bool printOut)
         {
             // Load the XML document
             XDocument xdoc = XDocument.Load(xmlFilePath);
@@ -539,7 +545,7 @@ namespace UnitTesting
         }
 
 
-        public static void ChangeComplexElementAttribute(string xmlFilePath, string complexElementName, string attributeName, string attributeValue)
+        public static void ChangeComplexElementAttribute(string xmlFilePath, string complexElementName, string attributeName, string attributeValue, bool printOut)
         {
             // Load the XML document
             XDocument xdoc = XDocument.Load(xmlFilePath);
@@ -562,7 +568,7 @@ namespace UnitTesting
             }
         }
 
-        public static void AddAttributeToComplexElement(string xmlFilePath, string complexElementName, string attributeName, string attributeValue)
+        public static void AddAttributeToComplexElement(string xmlFilePath, string complexElementName, string attributeName, string attributeValue, bool printOut)
         {
             try
             {
@@ -592,7 +598,7 @@ namespace UnitTesting
             }
         }
 
-        public static void AddElementToComplexElement(string xmlFilePath, string complexElementName, string newElementName)
+        public static void AddElementToComplexElement(string xmlFilePath, string complexElementName, string newElementName, bool printOut)
         {
             try
             {
@@ -623,20 +629,25 @@ namespace UnitTesting
             }
         }
 
-
-        public static void CreateCData(string xmlFilePath, string complexElementName, string cdataContent)
+        /// <summary>
+        /// Create a new CDATA element to the last or default instance of a specified complex element.
+        /// </summary>
+        /// <param name="xmlFilePath">The AOI L5X file path.</param>
+        /// <param name="complexElementName">The name of the complex element to which the CDATA element will be added.</param>
+        /// <param name="cdataContent">The contents of the CDATA element.</param>
+        public static void AddCDATA(string xmlFilePath, string complexElementName, string cdataContent, bool printOut)
         {
             try
             {
-                // Load the XML document
+                // Load the XML document.
                 XDocument xdoc = XDocument.Load(xmlFilePath);
 
-                // Find the complex element by name
+                // Find the complex element by name.
                 XElement complexElement = xdoc.Descendants(complexElementName).LastOrDefault();
 
                 if (complexElement != null)
                 {
-                    // Create a new CDATA section and add it to the complex element
+                    // Create a new CDATA section and add it to the complex element.
                     XCData cdataSection = new XCData(cdataContent);
                     complexElement.Add(cdataSection);
                     Console.WriteLine($"A new CDATA section has been created and added to the element '{complexElementName}'.");
@@ -649,20 +660,25 @@ namespace UnitTesting
                     Console.WriteLine($"The complex element '{complexElementName}' was not found in the XML file.");
                 }
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                Console.WriteLine($"An error occurred: {ex.Message}");
+                Console.WriteLine("ERROR: " + e.Message);
             }
         }
 
-        public static string Get_CDATAfromXML_forData(string xmlFilePath)
+        /// <summary>
+        /// Programmatically get the CDATA contents for the Data complex element.
+        /// </summary>
+        /// <param name="xmlFilePath">The AOI L5X file path.</param>
+        /// <returns>A string of formatted CDATA contents.</returns>
+        public static string Get_CDATAfromXML_forData(string xmlFilePath, bool printOut)
         {
             try
             {
                 // Load the XML document
                 XDocument doc = XDocument.Load(xmlFilePath);
 
-                // Find all "Parameter" elements
+                // Get a list filtered to contain only CDATA information from nonboolean "Parameter" elements
                 var parameterElements = doc
                     .Descendants("Parameters")
                     .Elements("Parameter")
@@ -672,9 +688,10 @@ namespace UnitTesting
                     .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
                     .ToList();
 
+                // Join all parameterElements list elements into a single string, with each element separated by a comma without spaces.
                 string joined_pCDATA = string.Join(",", parameterElements);
 
-                // Find all "LocalTag" elements
+                // Get a list filtered to contain only CDATA information from nonboolean "LocalTag" elements
                 var localtagElements = doc
                     .Descendants("LocalTags")
                     .Elements("LocalTag")
@@ -684,10 +701,12 @@ namespace UnitTesting
                     .Select(defaultData => ((XCData)defaultData.FirstNode).Value.Trim())
                     .ToList();
 
+                // Join all localtagElements list elements into a single string, with each element separated by a comma without spaces.
                 string joined_ltCDATA = string.Join(",", localtagElements);
 
+                // Create the final formatted string to be used as CDATA content information (in the Data complex element of L5X).
                 string returnString = "[1," + joined_pCDATA + "," + joined_ltCDATA + "]";
-                Console.WriteLine("\n\n\n\nreturnString: " + returnString);
+
                 return returnString;
             }
             catch (Exception e)
@@ -697,94 +716,156 @@ namespace UnitTesting
             }
         }
 
-        public static string Get_CDATAfromXML_forText(string xmlFilePath)
+        /// <summary>
+        /// Programmatically get the CDATA contents for the Text complex element.<br/>
+        /// This method is where the information needed for a new AOI tag is programmatically gathered and formatted.
+        /// </summary>
+        /// <param name="xmlFilePath">The AOI L5X file path.</param>
+        /// <param name="printOut">A boolean that, if true, prints updates to the console.</param>
+        /// <returns>A string of formatted CDATA contents.</returns>
+        public static string Get_CDATAfromXML_forText(string xmlFilePath, bool printOut)
         {
-            string? aoiName = Get_AttributeValue(xmlFilePath, "AddOnInstructionDefinition", "Name");
-            StringBuilder sb = new StringBuilder();
+            // The name of the AOI being testing.
+            string? aoiName = Get_AttributeValue(xmlFilePath, "AddOnInstructionDefinition", "Name", printOut);
+
+            // Initialize the StringBuilder that will contain the AOI parameter tag names.
+            StringBuilder aoiTagParameterNames = new();
+
+            try
+            {
+                // Load the XML document.
+                XDocument doc = XDocument.Load(xmlFilePath);
+
+                // Find all "Parameter" elements.
+                var parameterElements = doc.Descendants("Parameter");
+
+                // Cycle through each AOI parameter and add it to the list if it is a required parameter.
+                foreach (var param in parameterElements)
+                {
+                    XAttribute? nameAttribute = param.Attribute("Name");
+                    string? requiredAttributeValue = param.Attribute("Required")?.Value;
+                    if ((nameAttribute != null) && (requiredAttributeValue == "true"))
+                    {
+                        aoiTagParameterNames.Append($",AOI_{aoiName}.{nameAttribute.Value}");
+                    }
+                }
+
+                string returnString = $"{aoiName}(AOI_{aoiName}{aoiTagParameterNames});";
+
+                if (printOut)
+                {
+                    Console.WriteLine("CDATA: " + returnString);
+                }
+
+                return returnString;
+            }
+            catch (Exception e)
+            {
+                if (printOut)
+                {
+                    Console.WriteLine("ERROR: " + e.Message);
+                }
+                return e.Message;
+            }
+        }
+
+        /// <summary>
+        /// Get all the attribute names and values for each parameter in an AOI L5X file.
+        /// </summary>
+        /// <param name="xmlFilePath">The AOI L5X file path.</param>
+        /// <param name="printOut">A boolean that, if true, prints updates to the console.</param>
+        /// <returns>A list of dictionaries for each AOI parameter's attributes.</returns>
+        public static List<Dictionary<string, string>> Get_DataValueMemberInfofromXML(string xmlFilePath, bool printOut)
+        {
+            List<Dictionary<string, string>> return_attributeList = new List<Dictionary<string, string>>();
+
             try
             {
                 // Load the XML document
                 XDocument doc = XDocument.Load(xmlFilePath);
 
-                // Find all "Parameter" elements
-                var parameterElements = doc.Descendants("Parameter");
-
-                foreach (var param in parameterElements)
-                {
-                    XAttribute nameAttribute = param.Attribute("Name");
-
-                    if ((nameAttribute != null) && (param.Attribute("Required").Value == "true"))
-                        sb.Append($",AOI_{aoiName}.{nameAttribute.Value}");
-                }
-
-                string returnString = $"{aoiName}(AOI_{aoiName}{sb});";
-                Console.WriteLine("\n\n\n\nreturnString: " + returnString);
-                return returnString;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("ERROR: " + e.Message);
-                return e.Message;
-            }
-        }
-
-        public static List<Dictionary<string, string>> Get_DataValueMemberInfofromXML(string xmlFilePath)
-        {
-            List<Dictionary<string, string>> attributeList = new List<Dictionary<string, string>>();
-
-            try
-            {
-                XDocument doc = XDocument.Load(xmlFilePath);
-
-                foreach (var paramElem in doc.Descendants("Parameter"))
+                // Cycle through each "Parameter" element in the L5X file.
+                foreach (var parameterElement in doc.Descendants("Parameter"))
                 {
                     Dictionary<string, string> attributes = new Dictionary<string, string>
-                {
-                    { "Name", paramElem.Attribute("Name")?.Value },
-                    { "DataType", paramElem.Attribute("DataType")?.Value },
-                    { "Radix", paramElem.Attribute("Radix")?.Value }
-                };
+                    {
+                        { "Name", parameterElement.Attribute("Name").Value },
+                        { "DataType", parameterElement.Attribute("DataType").Value },
+                        { "Radix", parameterElement.Attribute("Radix").Value }
+                    };
 
-                    attributeList.Add(attributes);
+                    // Store the new dictionary containing attributes for a single AOI parameter.
+                    return_attributeList.Add(attributes);
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error: {e.Message}");
+                if (printOut)
+                {
+                    Console.WriteLine($"Error: {e.Message}");
+                }
             }
 
-            return attributeList;
+            return return_attributeList;
         }
 
-        public static string AddComplexElementsToXml(string xmlFilePath, List<Dictionary<string, string>> attributesList)
+        /// <summary>
+        /// For each AOI parameter, add the element "DataValueMember" with its attributes to the L5X complex element "Structure".<br/>
+        /// This method creates XML children needed to create an AOI tag in the L5X file.
+        /// </summary>
+        /// <param name="xmlFilePath">The AOI L5X file path.</param>
+        /// <param name="attributesList">A list of dictionaries for each AOI parameter's attributes.</param>
+        /// <param name="printOut">A boolean that, if true, prints updates to the console.</param>
+        public static void AddComplexElementsWithAttributesToXml(string xmlFilePath, List<Dictionary<string, string>> attributesList, bool printOut)
         {
             try
             {
                 // Add the new attributes
                 foreach (var attributes in attributesList)
                 {
-                    AddElementToComplexElement(xmlFilePath, "Structure", "DataValueMember");
+                    // Add a new element "DataValueMember" to complex element "Structure" for each AOI parameter.
+                    AddElementToComplexElement(xmlFilePath, "Structure", "DataValueMember", printOut);
 
-                    AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Name", attributes["Name"]);
+                    // Add the "Name" attribute and its value for the current AOI parameter.
+                    AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Name", attributes["Name"], printOut);
 
-                    AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "DataType", attributes["DataType"]);
+                    // Add the "DataType" attribute and its value for the current AOI parameter.
+                    AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "DataType", attributes["DataType"], printOut);
 
+                    // Add the "Radix" attribute and its value for the current AOI parameter.
+                    // Note: BOOL datatype parameters don't have a "Radix" attribute and are therefore skipped.
                     if (attributes["DataType"] != "BOOL")
-                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Radix", attributes["Radix"]);
+                    {
+                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Radix", attributes["Radix"], printOut);
+                    }
 
+                    // Add the "Value" attribute and its value for the current AOI parameter.
+                    // Note: For AOIs, the only BOOL parameter with a value of 1 is "EnableIn".
+                    // Note: For REAL datatype parameters, their intial zero value has the notation "0.0". All else is "0".
                     if (attributes["Name"] == "EnableIn")
-                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Value", "1");
+                    {
+                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Value", "1", printOut);
+                    }
                     else if (attributes["DataType"] == "REAL")
-                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Value", "0.0");
+                    {
+                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Value", "0.0", printOut);
+                    }
                     else
-                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Value", "0");
+                    {
+                        AddAttributeToComplexElement(xmlFilePath, "DataValueMember", "Value", "0", printOut);
+                    }
                 }
-
-                return "Complex elements added successfully.";
+                if (printOut)
+                {
+                    Console.WriteLine("Complex elements added successfully.");
+                }
             }
             catch (Exception e)
             {
-                return $"Error: {e.Message}";
+                if (printOut)
+                {
+                    Console.WriteLine($"Error: {e.Message}");
+                }
             }
         }
         #endregion
