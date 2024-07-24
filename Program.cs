@@ -45,7 +45,7 @@ namespace UnitTesting
             // test_filePath1 is the name of the generated program target xml
             string unitTestExcelWorkbooks_folderPath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest"; // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
             string exampleTestReportsFolder_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports";// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-            //AOIParameters[] testParams = Get_AOIParameters_FromL5X(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
+            //AOIParameters[] testParams = GetAOIParameters_FromL5X(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
             //Print_AOIParameters(testParams);
 
 
@@ -71,6 +71,9 @@ namespace UnitTesting
             //string acdFilePath = "";
             //string aoiTagName = "";
             //string aoiTagScope = "";
+            bool keepACD;
+            bool keepL5Xs;
+            string aoiFilePath = "";
 
             // Increment through each Excel Workbook in the specified folder.
             for (int i = 0; i < (orderedExcelFiles.Count); i++)
@@ -85,6 +88,9 @@ namespace UnitTesting
                     //acdFilePath = worksheet.Cells[11, 3].Value?.ToString()!.Trim()!;
                     //aoiTagName = worksheet.Cells[11, 11].Value?.ToString()!.Trim()!;
                     //aoiTagScope = worksheet.Cells[11, 15].Value?.ToString()!.Trim()!;
+                    keepACD = ToBoolean(worksheet.Cells[9, 4].Value?.ToString()!.Trim()!);
+                    keepL5Xs = ToBoolean(worksheet.Cells[9, 14].Value?.ToString()!.Trim()!);
+                    aoiFilePath = worksheet.Cells[9, 2].Value?.ToString()!.Trim()!;
                 }
 
                 //string githubPath = @"C:\examplefolder";                                           // 1st incoming argument = GitHub folder path
@@ -102,10 +108,11 @@ namespace UnitTesting
                 string excelFileReportPath = Path.Combine(exampleTestReportsFolder_filePath, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.xlsx"); // new excel test report filename
 
                 // INCLUDE NEAR TOP
-                string aoi_L5Xfilepath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X"; // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+                string aoi_L5Xfilepath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\" + aoiFilePath; // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+                // DELETE LATER: the above had this WetBulbTemperature_AOI.L5X
                 string generatedRung_XMLfilepath = CopyXmlFile(aoi_L5Xfilepath, false);// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-                string? aoiName = Get_AttributeValue(generatedRung_XMLfilepath, "AddOnInstructionDefinition", "Name", false); // The name of the AOI being testing.
-                string aoiTagScope = $"Controller/Tags/Tag[@Name='{aoiName}']";
+                string? aoiName = GetAttributeValue(generatedRung_XMLfilepath, "AddOnInstructionDefinition", "Name", false); // The name of the AOI being testing.
+                string aoiTagScope = $"Controller/Tags/Tag[@Name='AOI_{aoiName}']";
                 Console.WriteLine("\n\n");
 
                 // Create a new ACD project file.
@@ -113,7 +120,7 @@ namespace UnitTesting
                 string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\",
                     DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiName + "_UnitTest.ACD"); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
                 //string acdPath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\20240716141455_AOIunittest.ACD";
-                string? softwareRevision_string = Get_AttributeValue(generatedRung_XMLfilepath, "RSLogix5000Content", "SoftwareRevision", false);
+                string? softwareRevision_string = GetAttributeValue(generatedRung_XMLfilepath, "RSLogix5000Content", "SoftwareRevision", false);
                 uint softwareRevision_uint = ConvertStringToUint(softwareRevision_string);
                 string processorTypeName = "1756-L85E";
                 string controllerName2 = "UnitTest_Controller";
@@ -149,8 +156,6 @@ namespace UnitTesting
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE setting up Factory Talk Logix Echo emulated controller\n---");
 
 
-
-
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] START preparing programmatically created ACD...");
                 // Create an empty program in the unscheduled folder of the new ACD application.
                 string emptyProgramContents_L5X = GetEmptyProgramXMLContents(programName, routineName, controllerName, softwareRevision_string);
@@ -170,15 +175,10 @@ namespace UnitTesting
                 await project.PartialImportFromXmlFileAsync(xPath_aoiDef, aoi_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
 
                 // XML FILE MANIPULATIONS
-                ConvertXML_AOItoRUNG(generatedRung_XMLfilepath, routineName, programName, true);
+                ConvertAOItoRUNGxml(generatedRung_XMLfilepath, routineName, programName, true);
                 string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines";
                 await project.PartialImportFromXmlFileAsync(xPath4, generatedRung_XMLfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
                 await project.SaveAsync();
-
-
-                File.Delete(emptyProgram_L5Xfilepath);
-                File.Delete(task_L5Xfilepath);
-                //File.Delete(rungXML);
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE preparing programmatically created ACD\n---");
 
                 // Change controller mode to program & verify.
@@ -206,20 +206,50 @@ namespace UnitTesting
 
                 //TagData[] testDataPoint = GetAOIParameters(currentExcelUnitTest_filePath);
 
-                Console.WriteLine("current fullTagPath: " + aoiTagScope);
-                ByteString udtoraoi_byteString = Get_UDTorAOI_ByteString_Sync(aoiTagScope, project, OperationMode.Online);
+                //Console.WriteLine("current fullTagPath: " + aoiTagScope);
+                ByteString udtoraoi_byteString = GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online);
 
-                CDTTParameters[] testParams = Get_AOIParameters_FromL5X(generatedRung_XMLfilepath); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-                //AOIParameters[] tagdata_UDTorAOI = Get_AOIParameters(testDataPoint, udtoraoi_byteString, true);
-                Print_AOIParameters(testParams);
+                CDTTParameters[] testParams = GetAOIParameters_FromL5X(generatedRung_XMLfilepath); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+                Print_AOIParameters(GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true));
 
-                int testcases = GetPopulatedColumnCount(currentExcelUnitTest_filePath, 20) - 3;
-                Console.WriteLine("testcases: " + testcases);
+                int testcases = GetPopulatedColumnCount(currentExcelUnitTest_filePath, 13) - 3;
+                //Console.WriteLine("testcases: " + testcases);
                 await SetSingleValue_UDTorAOI("40", aoiTagScope, "Temperature", OperationMode.Online, testParams, project);
                 await SetSingleValue_UDTorAOI("0", aoiTagScope, "isFahrenheit", OperationMode.Online, testParams, project);
 
-                Print_AOIParameters(Get_AOIParameterValues(testParams, Get_UDTorAOI_ByteString_Sync(aoiTagScope, project, OperationMode.Online), true));
+                Print_AOIParameters(GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true));
 
+                // Based on the AOI Excel Worksheet for this AOI, keep or delete generated L5X files.
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START keeping/deleting programmatically generated L5X files...");
+                if (keepL5Xs)
+                {
+                    File.Delete(emptyProgram_L5Xfilepath);
+                    Console.WriteLine($"STATUS:  deleted {emptyProgram_L5Xfilepath}");
+                    File.Delete(task_L5Xfilepath);
+                    Console.WriteLine($"STATUS:  deleted {task_L5Xfilepath}");
+                    File.Delete(generatedRung_XMLfilepath);
+                    Console.WriteLine($"STATUS:  deleted {generatedRung_XMLfilepath}");
+                }
+                else
+                {
+                    Console.WriteLine($"STATUS:  retained {emptyProgram_L5Xfilepath}");
+                    Console.WriteLine($"STATUS:  retained {task_L5Xfilepath}");
+                    Console.WriteLine($"STATUS:  retained {generatedRung_XMLfilepath}");
+                }
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE keeping/deleting programmatically generated L5X files\n---");
+
+                // Based on the AOI Excel Worksheet for this AOI, keep or delete the generated ACD file.
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START keeping/deleting programmatically generated ACD file...");
+                if (keepACD)
+                {
+                    File.Delete(acdPath);
+                    Console.WriteLine($"STATUS:  deleted {acdPath}");
+                }
+                else
+                {
+                    Console.WriteLine($"STATUS:  retained {acdPath}");
+                }
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE keeping/deleting programmatically generated ACD file\n---");
 
                 await project.GoOfflineAsync();
             }
@@ -294,11 +324,11 @@ namespace UnitTesting
                     </RSLogix5000Content>";
         }
 
-        public static void ConvertXML_AOItoRUNG(string xmlFilePath, string routineName, string programName, bool printOut)
+        public static void ConvertAOItoRUNGxml(string xmlFilePath, string routineName, string programName, bool printOut)
         {
             Console.WriteLine("rungXML filepath: " + xmlFilePath);
 
-            string aoiName = Get_AttributeValue(xmlFilePath, "AddOnInstructionDefinition", "Name", printOut);
+            string aoiName = GetAttributeValue(xmlFilePath, "AddOnInstructionDefinition", "Name", printOut);
 
             //Modify top half
             DeleteAttributeFromRoot(xmlFilePath, "TargetName", printOut);
@@ -323,7 +353,7 @@ namespace UnitTesting
             AddElementToComplexElement(xmlFilePath, "Tag", "Data", printOut);
             AddAttributeToComplexElement(xmlFilePath, "Data", "Format", "L5K", printOut);
 
-            string cdataInfo_forData = Get_CDATAfromXML_forData(xmlFilePath, printOut);
+            string cdataInfo_forData = GetCDATAfromXML_forData(xmlFilePath, printOut);
             AddCDATA(xmlFilePath, "Data", cdataInfo_forData, printOut);
 
             AddElementToComplexElement(xmlFilePath, "Tag", "Data", printOut);
@@ -332,7 +362,7 @@ namespace UnitTesting
             AddElementToComplexElement(xmlFilePath, "Data", "Structure", printOut);
             AddAttributeToComplexElement(xmlFilePath, "Structure", "DataType", aoiName, printOut);
 
-            List<Dictionary<string, string>> attributesList = Get_DataValueMemberInfofromXML(xmlFilePath, printOut);
+            List<Dictionary<string, string>> attributesList = GetDataValueMemberInfofromXML(xmlFilePath, printOut);
             AddComplexElementsWithAttributesToXml(xmlFilePath, attributesList, printOut);
 
             if (printOut)
@@ -367,7 +397,7 @@ namespace UnitTesting
 
             AddElementToComplexElement(xmlFilePath, "Rung", "Text", printOut);
 
-            string cdataInfo_forText = Get_CDATAfromXML_forText(xmlFilePath, printOut);
+            string cdataInfo_forText = GetCDATAfromXML_forText(xmlFilePath, printOut);
             AddCDATA(xmlFilePath, "Text", cdataInfo_forText, printOut);
         }
 
@@ -394,7 +424,7 @@ namespace UnitTesting
             return newFilePath;
         }
 
-        public static string? Get_AttributeValue(string xmlFilePath, string complexElementName, string attributeName, bool printOut)
+        public static string? GetAttributeValue(string xmlFilePath, string complexElementName, string attributeName, bool printOut)
         {
             // Load the XML document
             XDocument xdoc = XDocument.Load(xmlFilePath);
@@ -617,7 +647,7 @@ namespace UnitTesting
                     complexElement.Add(cdataSection);
                     Console.WriteLine($"A new CDATA section has been created and added to the element '{complexElementName}'.");
 
-                    // Save the changes back to the file
+                    // Save the changes back to the file.
                     xdoc.Save(xmlFilePath);
                 }
                 else
@@ -636,7 +666,7 @@ namespace UnitTesting
         /// </summary>
         /// <param name="xmlFilePath">The AOI L5X file path.</param>
         /// <returns>A string of formatted CDATA contents.</returns>
-        public static string Get_CDATAfromXML_forData(string xmlFilePath, bool printOut)
+        public static string GetCDATAfromXML_forData(string xmlFilePath, bool printOut)
         {
             try
             {
@@ -688,10 +718,10 @@ namespace UnitTesting
         /// <param name="xmlFilePath">The AOI L5X file path.</param>
         /// <param name="printOut">A boolean that, if true, prints updates to the console.</param>
         /// <returns>A string of formatted CDATA contents.</returns>
-        public static string Get_CDATAfromXML_forText(string xmlFilePath, bool printOut)
+        public static string GetCDATAfromXML_forText(string xmlFilePath, bool printOut)
         {
             // The name of the AOI being testing.
-            string? aoiName = Get_AttributeValue(xmlFilePath, "AddOnInstructionDefinition", "Name", printOut);
+            string? aoiName = GetAttributeValue(xmlFilePath, "AddOnInstructionDefinition", "Name", printOut);
 
             // Initialize the StringBuilder that will contain the AOI parameter tag names.
             StringBuilder aoiTagParameterNames = new();
@@ -740,7 +770,7 @@ namespace UnitTesting
         /// <param name="xmlFilePath">The AOI L5X file path.</param>
         /// <param name="printOut">A boolean that, if true, prints updates to the console.</param>
         /// <returns>A list of dictionaries for each AOI parameter's attributes.</returns>
-        public static List<Dictionary<string, string>> Get_DataValueMemberInfofromXML(string xmlFilePath, bool printOut)
+        public static List<Dictionary<string, string>> GetDataValueMemberInfofromXML(string xmlFilePath, bool printOut)
         {
             List<Dictionary<string, string>> return_attributeList = new List<Dictionary<string, string>>();
 
@@ -904,7 +934,7 @@ namespace UnitTesting
         private static void Print_AOIParameters(CDTTParameters[] dataPointsArray)
         {
             int arraySize = dataPointsArray.Length;
-            Console.WriteLine("arraySize: " + arraySize);
+            //Console.WriteLine("arraySize: " + arraySize);
 
             for (int i = 0; i < arraySize; i++)
             {
@@ -915,7 +945,7 @@ namespace UnitTesting
             }
         }
 
-        private static CDTTParameters[] Get_AOIParameters(string filePath)
+        private static CDTTParameters[] GetAOIParameters(string filePath)
         {
             int parameterCount;
             CDTTParameters[] returnDataPoints;
@@ -945,7 +975,7 @@ namespace UnitTesting
         }
 
 
-        private static CDTTParameters[] Get_AOIParameters_FromL5X(string l5xPath)
+        private static CDTTParameters[] GetAOIParameters_FromL5X(string l5xPath)
         {
             XDocument xDoc = XDocument.Load(l5xPath);
             int parameterCount = xDoc.Descendants("Parameters").FirstOrDefault().Elements().Count();
@@ -1257,7 +1287,7 @@ namespace UnitTesting
         /// return_array[1] = online tag value<br/>
         /// return_array[2] = offline tag value
         /// </returns>
-        private static async Task<string[]> Get_TagValue_Async(string tagName, DataType type, string tagPath, LogixProject project, bool printout)
+        private static async Task<string[]> GetTagValue_Async(string tagName, DataType type, string tagPath, LogixProject project, bool printout)
         {
             string[] return_array = new string[3];
             tagPath = tagPath + $"[@Name='{tagName}']";
@@ -1352,9 +1382,9 @@ namespace UnitTesting
         /// return_array[1] = online tag value<br/>
         /// return_array[2] = offline tag value
         /// </returns>
-        private static string[] Get_TagValue_Sync(string tagName, DataType type, string tagPath, LogixProject project, bool printout)
+        private static string[] GetTagValue_Sync(string tagName, DataType type, string tagPath, LogixProject project, bool printout)
         {
-            var task = Get_TagValue_Async(tagName, type, tagPath, project, printout);
+            var task = GetTagValue_Async(tagName, type, tagPath, project, printout);
             task.Wait();
             return task.Result;
         }
@@ -1374,10 +1404,10 @@ namespace UnitTesting
         /// <param name="project">An instance of the LogixProject class.</param>
         /// <param name="printout">A boolean that, if True, prints the online and offline values to the console.</param>
         /// <returns>A Task that will set the online or offline value of a basic data type tag.</returns>
-        private static async Task Set_TagValue_Async(string tagName, string newTagValue, OperationMode mode, DataType type, string tagPath, LogixProject project, bool printout)
+        private static async Task SetTagValue_Async(string tagName, string newTagValue, OperationMode mode, DataType type, string tagPath, LogixProject project, bool printout)
         {
             tagPath = tagPath + $"[@Name='{tagName}']";
-            string[] old_tag_values = await Get_TagValue_Async(tagName, type, tagPath, project, false);
+            string[] old_tag_values = await GetTagValue_Async(tagName, type, tagPath, project, false);
             string old_tag_value = "";
             try
             {
@@ -1463,9 +1493,9 @@ namespace UnitTesting
         /// </param>
         /// <param name="project">An instance of the LogixProject class.</param>
         /// <param name="printout">A boolean that, if True, prints the online and offline values to the console.</param>
-        private static void Set_TagValue_Sync(string tagName, string newTagValue, OperationMode mode, DataType type, string tagPath, LogixProject project, bool printout)
+        private static void SetTagValue_Sync(string tagName, string newTagValue, OperationMode mode, DataType type, string tagPath, LogixProject project, bool printout)
         {
-            var task = Set_TagValue_Async(tagName, newTagValue, mode, type, tagPath, project, printout);
+            var task = SetTagValue_Async(tagName, newTagValue, mode, type, tagPath, project, printout);
             task.Wait();
         }
         #endregion
@@ -1483,7 +1513,7 @@ namespace UnitTesting
         /// returnByteStringArray[0] = online tag values<br/>
         /// returnByteStringArray[1] = offline tag values
         /// </returns>
-        private static async Task<ByteString> Get_UDTorAOI_ByteString_Async(string fullTagPath, LogixProject project, OperationMode online_or_offline)
+        private static async Task<ByteString> GetAOIbytestring_Async(string fullTagPath, LogixProject project, OperationMode online_or_offline)
         {
             ByteString returnByteStringArray = ByteString.Empty;
             if (online_or_offline == OperationMode.Online)
@@ -1509,9 +1539,9 @@ namespace UnitTesting
         /// returnByteStringArray[0] = online tag values<br/>
         /// returnByteStringArray[1] = offline tag values
         /// </returns>
-        private static ByteString Get_UDTorAOI_ByteString_Sync(string tagPath, LogixProject project, OperationMode online_or_offline)
+        private static ByteString GetAOIbytestring_Sync(string tagPath, LogixProject project, OperationMode online_or_offline)
         {
-            var task = Get_UDTorAOI_ByteString_Async(tagPath, project, online_or_offline);
+            var task = GetAOIbytestring_Async(tagPath, project, online_or_offline);
             task.Wait();
             return task.Result;
         }
@@ -1548,7 +1578,7 @@ namespace UnitTesting
 
         private static async Task SetSingleValue_UDTorAOI(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, CDTTParameters[] input_TagDataArray, LogixProject project)
         {
-            ByteString input_ByteString = Get_UDTorAOI_ByteString_Sync(aoiTagPath, project, mode);
+            ByteString input_ByteString = GetAOIbytestring_Sync(aoiTagPath, project, mode);
             byte[] new_byteArray = input_ByteString.ToByteArray();
             int arraySize = input_TagDataArray.Length;
             string oldParameterValue = "";
@@ -1558,7 +1588,7 @@ namespace UnitTesting
                 // Search the TagData[] array to get the associated newTagValue data needed.
                 if (input_TagDataArray[j].Name == parameterName)
                 {
-                    DataType dataType = Get_DataType(input_TagDataArray[j].DataType);
+                    DataType dataType = GetDataType(input_TagDataArray[j].DataType);
                     int bytePosition = input_TagDataArray[j].BytePosition;
                     oldParameterValue = input_TagDataArray[j].Value;
 
@@ -1623,7 +1653,7 @@ namespace UnitTesting
             Console.WriteLine($"SUCCESS: {parameterName,-14} | {oldParameterValue,20} -> {newParameterValue,-20}");
         }
 
-        private static DataType Get_DataType(string dataType)
+        private static DataType GetDataType(string dataType)
         {
             DataType type;
             switch (dataType)
@@ -1647,13 +1677,13 @@ namespace UnitTesting
                     type = DataType.LINT;
                     break;
                 default:
-                    Console.WriteLine("Error in Get_DataType method: data type not recognized!");
+                    Console.WriteLine("Error in GetDataType method: data type not recognized!");
                     throw new ArgumentException();
             }
             return type;
         }
 
-        private static CDTTParameters[] Get_AOIParameterValues(CDTTParameters[] input_TagDataArray, ByteString input_AOIorUDT_ByteString, bool printout)
+        private static CDTTParameters[] GetAOIParameterValues(CDTTParameters[] input_TagDataArray, ByteString input_AOIorUDT_ByteString, bool printout)
         {
             // initialize values needed for this method
             CDTTParameters[] output_TagDataArray = input_TagDataArray;
