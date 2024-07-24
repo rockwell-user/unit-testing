@@ -22,16 +22,19 @@ namespace UnitTesting
 {
     internal class UnitTest
     {
-        struct AOIParameters
+        /// <summary>
+        /// The "Complex Data Type Tag Parameters" structure houses all the information required to read & use AOIs/UDTs.
+        /// </summary>
+        struct CDTTParameters
         {
-            public string? Name { get; set; }
-            public string? DataType { get; set; }
-            public string? Usage { get; set; }
-            public bool? Required { get; set; }
-            public bool? Visible { get; set; }
-            public string? Value { get; set; }
-            public int BytePosition { get; set; }
-            public int BoolPosition { get; set; }
+            public string? Name { get; set; }     // the AOI parameter's name
+            public string? DataType { get; set; } // BOOL/SINT/INT/DINT/LINT/REAL
+            public string? Usage { get; set; }    // Input/Output/InOut
+            public bool? Required { get; set; }   // is the parameter required in an instruction
+            public bool? Visible { get; set; }    // is the parameter visible in an instruction
+            public string? Value { get; set; }    // the value of the AOI parameter
+            public int BytePosition { get; set; } // used during tag conversion
+            public int BoolPosition { get; set; } // used during tag conversion
         }
 
         static async Task Main()
@@ -40,8 +43,8 @@ namespace UnitTesting
             // THE ONLY PARAMETER THAT WILL NEED TO BE MODIFIED (MAYBE PASS THIS IN FROM JENKINS)
             // Parameter to be specified in jenkins
             // test_filePath1 is the name of the generated program target xml
-            string unitTestExcelWorkbooks_folderPath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest";
-            string exampleTestReportsFolder_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports";
+            string unitTestExcelWorkbooks_folderPath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest"; // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+            string exampleTestReportsFolder_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports";// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
             //AOIParameters[] testParams = Get_AOIParameters_FromL5X(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
             //Print_AOIParameters(testParams);
 
@@ -59,10 +62,15 @@ namespace UnitTesting
             List<FileInfo> orderedExcelFiles = [.. excelFiles.Select(f => new FileInfo(f)).OrderBy(f => f.CreationTime)];
 
             // Parameters from the excel sheet that determine the test to be run. 
-            string controllerName = "";
-            string acdFilePath = "";
-            string aoiTagName = "";
-            string aoiTagScope = "";
+            string echoChassisName = "UnitTest_Chassis";
+            string controllerName = "UnitTest_Controller";
+            string taskName = "T00_AOI_Testing";
+            string programName = "P00_AOI_Testing";
+            string routineName = "R00_AOI_Testing";
+            string tempFolder = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\";// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+            //string acdFilePath = "";
+            //string aoiTagName = "";
+            //string aoiTagScope = "";
 
             // Increment through each Excel Workbook in the specified folder.
             for (int i = 0; i < (orderedExcelFiles.Count); i++)
@@ -73,12 +81,11 @@ namespace UnitTesting
                 {
                     //get the first worksheet in the workbook
                     ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
-                    controllerName = worksheet.Cells[11, 2].Value?.ToString()!.Trim()!;
-                    acdFilePath = worksheet.Cells[11, 3].Value?.ToString()!.Trim()!;
-                    aoiTagName = worksheet.Cells[11, 11].Value?.ToString()!.Trim()!;
-                    aoiTagScope = worksheet.Cells[11, 15].Value?.ToString()!.Trim()!;
+                    //controllerName = worksheet.Cells[11, 2].Value?.ToString()!.Trim()!;
+                    //acdFilePath = worksheet.Cells[11, 3].Value?.ToString()!.Trim()!;
+                    //aoiTagName = worksheet.Cells[11, 11].Value?.ToString()!.Trim()!;
+                    //aoiTagScope = worksheet.Cells[11, 15].Value?.ToString()!.Trim()!;
                 }
-
 
                 //string githubPath = @"C:\examplefolder";                                           // 1st incoming argument = GitHub folder path
                 //string acdFilename = "CICD_test.ACD";                                          // 2nd incoming argument = Logix Designer ACD filename
@@ -95,36 +102,16 @@ namespace UnitTesting
                 string excelFileReportPath = Path.Combine(exampleTestReportsFolder_filePath, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.xlsx"); // new excel test report filename
 
                 // INCLUDE NEAR TOP
-                string tempFolder = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\";
-                string generatedRung_XMLfilepath = CopyXmlFile(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X", false);
-
-
+                string aoi_L5Xfilepath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X"; // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+                string generatedRung_XMLfilepath = CopyXmlFile(aoi_L5Xfilepath, false);// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+                string? aoiName = Get_AttributeValue(generatedRung_XMLfilepath, "AddOnInstructionDefinition", "Name", false); // The name of the AOI being testing.
+                string aoiTagScope = $"Controller/Tags/Tag[@Name='{aoiName}']";
                 Console.WriteLine("\n\n");
-
-                // Executed only once on the first AOI tested.
-                if (i == 0)
-                {
-                    // Create an excel test report to be filled out during testing.
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START setting up excel test report workbook...");
-                    CreateFormattedExcelFile(excelFileReportPath, acdFilePath, name_mostRecentCommit, email_mostRecentCommit,
-                        jenkinsBuildNumber, jenkinsJobName, hash_mostRecentCommit, message_mostRecentCommit);
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE setting up excel test report workbook...\n---");
-
-                    // Check the test-reports folder and if over the specified file number limit, delete the oldest test files.
-                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] START checking test-reports folder...");
-                    CleanTestReportsFolder(exampleTestReportsFolder_filePath, 5);
-                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE checking test-reports folder...\n---");
-                }
-
-                // Set up emulated controller (based on the specified ACD file path) if one does not yet exist. If not, continue.
-                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START setting up Factory Talk Logix Echo emulated controller...");
-                string commPath = SetUpEmulatedController_Sync(acdFilePath, "UnitTest_Chassis", controllerName);
-                Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE setting up Factory Talk Logix Echo emulated controller\n---");
 
                 // Create a new ACD project file.
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] START creating & opening ACD file...");
                 string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\",
-                    DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiTagName + "_UnitTest.ACD");
+                    DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiName + "_UnitTest.ACD"); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
                 //string acdPath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\20240716141455_AOIunittest.ACD";
                 string? softwareRevision_string = Get_AttributeValue(generatedRung_XMLfilepath, "RSLogix5000Content", "SoftwareRevision", false);
                 uint softwareRevision_uint = ConvertStringToUint(softwareRevision_string);
@@ -141,28 +128,49 @@ namespace UnitTesting
                 //project.AddEventHandler(logger);
                 //// =========================================================================
 
+                // Executed only once on the first AOI tested.
+                if (i == 0)
+                {
+                    // Create an excel test report to be filled out during testing.
+                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START setting up excel test report workbook...");
+                    CreateFormattedExcelFile(excelFileReportPath, acdPath, name_mostRecentCommit, email_mostRecentCommit,
+                        jenkinsBuildNumber, jenkinsJobName, hash_mostRecentCommit, message_mostRecentCommit);
+                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE setting up excel test report workbook...\n---");
+
+                    // Check the test-reports folder and if over the specified file number limit, delete the oldest test files.
+                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] START checking test-reports folder...");
+                    CleanTestReportsFolder(exampleTestReportsFolder_filePath, 5);
+                    Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE checking test-reports folder...\n---");
+                }
+
+                // Set up emulated controller (based on the specified ACD file path) if one does not yet exist. If not, continue.
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] START setting up Factory Talk Logix Echo emulated controller...");
+                string commPath = SetUpEmulatedController_Sync(acdPath, echoChassisName, controllerName);
+                Console.WriteLine($"[{DateTime.Now.ToString("T")}] DONE setting up Factory Talk Logix Echo emulated controller\n---");
+
+
+
 
                 Console.WriteLine($"[{DateTime.Now.ToString("T")}] START preparing programmatically created ACD...");
                 // Create an empty program in the unscheduled folder of the new ACD application.
-                string emptyProgramContents_L5X = GetEmptyProgramXMLContents("P00_AOI_Testing", "R00_AOI_Testing", "UnitTest_Controller", softwareRevision_string);
+                string emptyProgramContents_L5X = GetEmptyProgramXMLContents(programName, routineName, controllerName, softwareRevision_string);
                 string emptyProgram_L5Xfilepath = tempFolder + "generated_programtarget.L5X";
                 File.WriteAllText(emptyProgram_L5Xfilepath, emptyProgramContents_L5X);
                 string xPath_programs = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
                 await project.PartialImportFromXmlFileAsync(xPath_programs, emptyProgram_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
 
                 // Add a task to the ACD application. The empty program is automatically grabbed.
-                string taskContents_L5X = GetTaskXMLContents("T00_AOI_Testing", "P00_AOI_Testing", "UnitTest_Controller", softwareRevision_string);
+                string taskContents_L5X = GetTaskXMLContents(taskName, programName, controllerName, softwareRevision_string);
                 string task_L5Xfilepath = tempFolder + "generated_tasktarget.L5X";
                 File.WriteAllText(task_L5Xfilepath, taskContents_L5X);
                 string xPath_tasks = @"Controller/Tasks";  // include program in task
                 await project.PartialImportFromXmlFileAsync(xPath_tasks, task_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
 
-                string aoi_L5Xfilepath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X";
                 string xPath_aoiDef = @"Controller/AddOnInstructionDefinitions";
                 await project.PartialImportFromXmlFileAsync(xPath_aoiDef, aoi_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
 
                 // XML FILE MANIPULATIONS
-                ConvertXML_AOItoRUNG(generatedRung_XMLfilepath, true);
+                ConvertXML_AOItoRUNG(generatedRung_XMLfilepath, routineName, programName, true);
                 string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines";
                 await project.PartialImportFromXmlFileAsync(xPath4, generatedRung_XMLfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
                 await project.SaveAsync();
@@ -201,7 +209,7 @@ namespace UnitTesting
                 Console.WriteLine("current fullTagPath: " + aoiTagScope);
                 ByteString udtoraoi_byteString = Get_UDTorAOI_ByteString_Sync(aoiTagScope, project, OperationMode.Online);
 
-                AOIParameters[] testParams = Get_AOIParameters_FromL5X(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
+                CDTTParameters[] testParams = Get_AOIParameters_FromL5X(generatedRung_XMLfilepath); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
                 //AOIParameters[] tagdata_UDTorAOI = Get_AOIParameters(testDataPoint, udtoraoi_byteString, true);
                 Print_AOIParameters(testParams);
 
@@ -255,7 +263,7 @@ namespace UnitTesting
                     <RSLogix5000Content SchemaRevision=""1.0"" SoftwareRevision=""" + softwareRevision + @""" TargetName=""" + programName + @""" TargetType =""Program"" ContainsContext=""true"" ExportDate=""" + DateTime.Now.ToString("ddd MMM dd HH:mm:ss yyyy") + @""" ExportOptions=""References NoRawData L5KData DecoratedData Context Dependencies ForceProtectedEncoding AllProjDocTrans"">
                         <Controller Use=""Context"" Name=""" + controllerName + @""">
                             <Programs Use=""Context"">
-                                <Program Use=""Target"" Name=""" + programName + @""" TestEdits=""false"" MainRoutineName=""R00_AOI_Testing"" Disabled=""false"" UseAsFolder=""false"">
+                                <Program Use=""Target"" Name=""" + programName + @""" TestEdits=""false"" MainRoutineName=""" + routineName + @""" Disabled=""false"" UseAsFolder=""false"">
                                     <Tags/>
                                     <Routines>
                                         <Routine Name=""" + routineName + @""" Type=""RLL""/>
@@ -286,7 +294,7 @@ namespace UnitTesting
                     </RSLogix5000Content>";
         }
 
-        public static void ConvertXML_AOItoRUNG(string xmlFilePath, bool printOut)
+        public static void ConvertXML_AOItoRUNG(string xmlFilePath, string routineName, string programName, bool printOut)
         {
             Console.WriteLine("rungXML filepath: " + xmlFilePath);
 
@@ -340,14 +348,14 @@ namespace UnitTesting
 
             AddElementToComplexElement(xmlFilePath, "Programs", "Program", printOut);
             AddAttributeToComplexElement(xmlFilePath, "Program", "Use", "Context", printOut);
-            AddAttributeToComplexElement(xmlFilePath, "Program", "Name", "P00_AOI_Testing", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Program", "Name", programName, printOut);
 
             AddElementToComplexElement(xmlFilePath, "Program", "Routines", printOut);
             AddAttributeToComplexElement(xmlFilePath, "Routines", "Use", "Context", printOut);
 
             AddElementToComplexElement(xmlFilePath, "Routines", "Routine", printOut);
             AddAttributeToComplexElement(xmlFilePath, "Routine", "Use", "Context", printOut);
-            AddAttributeToComplexElement(xmlFilePath, "Routine", "Name", "R00_AOI_Testing", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Routine", "Name", routineName, printOut);
 
             AddElementToComplexElement(xmlFilePath, "Routine", "RLLContent", printOut);
             AddAttributeToComplexElement(xmlFilePath, "RLLContent", "Use", "Context", printOut);
@@ -893,7 +901,7 @@ namespace UnitTesting
             }
         }
 
-        private static void Print_AOIParameters(AOIParameters[] dataPointsArray)
+        private static void Print_AOIParameters(CDTTParameters[] dataPointsArray)
         {
             int arraySize = dataPointsArray.Length;
             Console.WriteLine("arraySize: " + arraySize);
@@ -907,16 +915,16 @@ namespace UnitTesting
             }
         }
 
-        private static AOIParameters[] Get_AOIParameters(string filePath)
+        private static CDTTParameters[] Get_AOIParameters(string filePath)
         {
             int parameterCount;
-            AOIParameters[] returnDataPoints;
+            CDTTParameters[] returnDataPoints;
 
             FileInfo existingFile = new FileInfo(filePath);
             using (ExcelPackage package = new ExcelPackage(existingFile))
             {
                 parameterCount = GetPopulatedRowCount(filePath, 2) - 6;
-                returnDataPoints = new AOIParameters[parameterCount];
+                returnDataPoints = new CDTTParameters[parameterCount];
 
                 ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
                 for (int row = 0; row < parameterCount; row++)
@@ -925,7 +933,7 @@ namespace UnitTesting
                     var paramDataType = worksheet.Cells[row + 20, 3].Value.ToString()!.Trim();
                     var paramScope = worksheet.Cells[row + 20, 4].Value.ToString()!.Trim();
 
-                    AOIParameters dataPoint = new AOIParameters();
+                    CDTTParameters dataPoint = new CDTTParameters();
                     dataPoint.Name = paramName;
                     dataPoint.DataType = paramDataType;
                     dataPoint.Usage = paramScope;
@@ -937,11 +945,11 @@ namespace UnitTesting
         }
 
 
-        private static AOIParameters[] Get_AOIParameters_FromL5X(string l5xPath)
+        private static CDTTParameters[] Get_AOIParameters_FromL5X(string l5xPath)
         {
             XDocument xDoc = XDocument.Load(l5xPath);
             int parameterCount = xDoc.Descendants("Parameters").FirstOrDefault().Elements().Count();
-            AOIParameters[] returnDataPoints = new AOIParameters[parameterCount];
+            CDTTParameters[] returnDataPoints = new CDTTParameters[parameterCount];
             int paramIndex = 0;
 
             foreach (var p in xDoc.Descendants("Parameter"))
@@ -1538,7 +1546,7 @@ namespace UnitTesting
             }
         }
 
-        private static async Task SetSingleValue_UDTorAOI(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, AOIParameters[] input_TagDataArray, LogixProject project)
+        private static async Task SetSingleValue_UDTorAOI(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, CDTTParameters[] input_TagDataArray, LogixProject project)
         {
             ByteString input_ByteString = Get_UDTorAOI_ByteString_Sync(aoiTagPath, project, mode);
             byte[] new_byteArray = input_ByteString.ToByteArray();
@@ -1645,10 +1653,10 @@ namespace UnitTesting
             return type;
         }
 
-        private static AOIParameters[] Get_AOIParameterValues(AOIParameters[] input_TagDataArray, ByteString input_AOIorUDT_ByteString, bool printout)
+        private static CDTTParameters[] Get_AOIParameterValues(CDTTParameters[] input_TagDataArray, ByteString input_AOIorUDT_ByteString, bool printout)
         {
             // initialize values needed for this method
-            AOIParameters[] output_TagDataArray = input_TagDataArray;
+            CDTTParameters[] output_TagDataArray = input_TagDataArray;
             byte[] input_bytearray = input_AOIorUDT_ByteString.ToByteArray();
             int byteStartPosition_InputByteArray = 0;
             int boolStartPosition_InputByteArray = 0;
