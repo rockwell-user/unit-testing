@@ -34,6 +34,7 @@ namespace LogixEcho_ClassLibrary
             // Check if an emulated controller exists within an emulated chassis. If not, run through the if statement contents to create one.
 
             //if (CheckCurrentChassis_Sync("CICDtest_chassis", "CICD_test", serviceClient) == false)
+            ChassisData? chassisCICD = new ChassisData();
             if (Check_CurrentChassis_Sync(chassisName, serviceClient) == false)
             {
                 // Set up emulated chassis information.
@@ -42,26 +43,55 @@ namespace LogixEcho_ClassLibrary
                     Name = chassisName,
                     Description = "Test chassis for CI/CD demonstration."
                 };
-                ChassisData chassisCICD = await serviceClient.CreateChassis(chassisUpdate);
 
-                if (Check_CurrentController_Sync(chassisName, controllerName, serviceClient) == false)
+                chassisCICD = await serviceClient.CreateChassis(chassisUpdate);
+            }
+
+            if (Check_CurrentController_Sync(chassisName, controllerName, serviceClient) == false)
+            {
+
+                chassisCICD = await GetChassisID(chassisName, serviceClient);
+
+                // Set up emulated controller information.
+                using (var fileHandle = await serviceClient.SendFile(acdFilePath))
                 {
-                    // Set up emulated controller information.
-                    using (var fileHandle = await serviceClient.SendFile(acdFilePath))
+                    var controllerUpdate = await serviceClient.GetControllerInfoFromAcd(fileHandle);
+
+                    if (chassisCICD != null)
                     {
-                        var controllerUpdate = await serviceClient.GetControllerInfoFromAcd(fileHandle);
                         controllerUpdate.ChassisGuid = chassisCICD.ChassisGuid;
-                        var controllerData = await serviceClient.CreateController(controllerUpdate);
                     }
+
+                    await serviceClient.CreateController(controllerUpdate);
                 }
             }
+
             // Get emulated controller information.
-            string[] testControllerInfo = await Get_ControllerInfo_Async(chassisName, controllerName, serviceClient);
+            string[] testControllerInfo = await GetControllerInfo_Async(chassisName, controllerName, serviceClient);
             string commPath = @"EmulateEthernet\" + testControllerInfo[1];
-            Console.WriteLine($"SUCCESS: project communication path specified is \"{commPath}\"");
+            Console.WriteLine($"{FormatLineType("SUCCESS")}Project communication path specified is '{commPath}'");
             return commPath;
         }
         #region METHODS: setting up Logix Echo emulated controller
+        /// <summary>
+        /// Asynchronously check to see if a specific controller exists in a specific chassis.
+        /// </summary>
+        /// <param name="chassisName">The name of the emulated chassis to check the emulated controler in.</param>
+        /// <param name="controllerName">The name of the emulated controller to check.</param>
+        /// <param name="serviceClient">The Factory Talk Logix Echo interface.</param>
+        /// <returns>A Task that returns a boolean value 'True' if the emulated controller already exists and a 'False' if it does not.</returns>
+        public static async Task<ChassisData?> GetChassisID(string chassisName, IServiceApiClientV2 serviceClient)
+        {
+            var chassisList = (await serviceClient.ListChassis()).ToList();
+            for (int i = 0; i < chassisList.Count; i++)
+            {
+                if (chassisList[i].Name == chassisName)
+                    return chassisList[i];
+            }
+            return null;
+        }
+
+
         /// <summary>
         /// Asynchronously check to see if a specific controller exists in a specific chassis.
         /// </summary>
@@ -150,7 +180,7 @@ namespace LogixEcho_ClassLibrary
         /// return_array[1] = controller IP address<br/>
         /// return_array[2] = controller project file path
         /// </returns>
-        public static async Task<string[]> Get_ControllerInfo_Async(string chassisName, string controllerName, IServiceApiClientV2 serviceClient)
+        public static async Task<string[]> GetControllerInfo_Async(string chassisName, string controllerName, IServiceApiClientV2 serviceClient)
         {
             string[] return_array = new string[3];
             var chassisList = (await serviceClient.ListChassis()).ToList();
@@ -174,5 +204,11 @@ namespace LogixEcho_ClassLibrary
             return return_array;
         }
         #endregion
+
+        public static string FormatLineType(string formatType)
+        {
+            string returnString = formatType + ": ";
+            return returnString.PadLeft(11, ' ');
+        }
     }
 }
