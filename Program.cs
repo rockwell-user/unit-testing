@@ -182,7 +182,7 @@ namespace UnitTesting
 
                 // Change controller mode to program & verify.
                 Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START changing controller to PROGRAM...");
-                ChangeControllerMode_Async(commPath, "Program", project).GetAwaiter().GetResult();
+                ChangeControllerMode_Async(commPath, "PROGRAM", project).GetAwaiter().GetResult();
                 if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "PROGRAM")
                     Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] SUCCESS changing controller to PROGRAM\n---");
                 else
@@ -195,7 +195,7 @@ namespace UnitTesting
 
                 // Change controller mode to run.
                 Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START Changing controller to RUN...");
-                ChangeControllerMode_Async(commPath, "Run", project).GetAwaiter().GetResult();
+                ChangeControllerMode_Async(commPath, "RUN", project).GetAwaiter().GetResult();
                 if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "RUN")
                     Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] SUCCESS changing controller to RUN\n---");
                 else
@@ -203,17 +203,21 @@ namespace UnitTesting
 
                 // ---------------------------------------------------------------------------------------------------------------------------
 
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START {aoiName} unit testing...");
+                int failureCondition = 0;
                 //Console.WriteLine("current fullTagPath: " + aoiTagScope);
                 ByteString udtoraoi_byteString = GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online);
 
                 CDTTParameters[] testParams = GetAOIParameters_FromL5X(generatedRung_XMLfilepath); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
                 testParams = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true);
-                Print_AOIParameters(testParams, false);
+                Print_AOIParameters(testParams, aoiName, false);
 
                 // Iterate through and verify each test case (each column in the input excel sheet).
                 int testCases = GetPopulatedColumnCount(currentExcelUnitTest_filePath, 18) - 1;
                 for (int columnNumber = 4; columnNumber < (testCases + 4); columnNumber++)
                 {
+                    string testBannerContents = $"test {columnNumber - 3}/{testCases}";
+                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START {testBannerContents}...");
                     // Add tests
                     Dictionary<string, string> currentColumn = GetExcelTestValues(currentExcelUnitTest_filePath, columnNumber);
                     foreach (var kvp in currentColumn)
@@ -223,21 +227,42 @@ namespace UnitTesting
                             await SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project);
                         }
                     }
-                    foreach (var kvp in currentColumn)
-                    {
-                        //Console.WriteLine("second for loop kvp.key: " + kvp.Key);
-                        //Console.WriteLine("second for loop: " + GetCDTTParameter(kvp.Key, "Usage", testParams));
-                        if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Input")
-                        {
-                            CDTTParameters[] newTestParameters = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true);
-                            string outputValue = GetCDTTParameter(kvp.Key, "Value", newTestParameters);
-                            //Console.WriteLine("second for loop: " + GetCDTTParameter(kvp.Key, "Value", newTestParameters));
-                            TEST_CompareForExpectedValue(kvp.Key, kvp.Value, outputValue);
-                        }
 
+                    if (await ReadControllerMode_Async(commPath, project) != "FAULTED")
+                    {
+                        foreach (var kvp in currentColumn)
+                        {
+                            //Console.WriteLine("second for loop kvp.key: " + kvp.Key);
+                            //Console.WriteLine("second for loop: " + GetCDTTParameter(kvp.Key, "Usage", testParams));
+                            if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Input")
+                            {
+                                CDTTParameters[] newTestParameters = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true);
+                                string outputValue = GetCDTTParameter(kvp.Key, "Value", newTestParameters);
+
+                                failureCondition += TEST_CompareForExpectedValue(kvp.Key, kvp.Value, outputValue);
+                            }
+
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine(FormatLineType("FAILURE") + "Controller faulted.");
+                        failureCondition++;
+                        ChangeControllerMode_Async(commPath, "PROGRAM", project).GetAwaiter().GetResult();
+
+                        ChangeControllerMode_Async(commPath, "RUN", project).GetAwaiter().GetResult();
                     }
                 }
-                Print_AOIParameters(GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true), false);
+
+                if (failureCondition > 0)
+                {
+                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] {aoiName} Unit Test Result: FAIL\n---");
+                }
+                else
+                {
+                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] {aoiName} Unit Test Result: PASS\n---");
+                }
+
 
                 // Based on the AOI Excel Worksheet for this AOI, keep or delete generated L5X files.
                 Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START keeping/deleting programmatically generated L5X files...");
@@ -1023,22 +1048,34 @@ namespace UnitTesting
             }
         }
 
-        private static void Print_AOIParameters(CDTTParameters[] dataPointsArray, bool printPosition)
+        private static void Print_AOIParameters(CDTTParameters[] dataPointsArray, string aoiName, bool printPosition)
         {
             int arraySize = dataPointsArray.Length;
+            Console.WriteLine($"Print {aoiName} Parameters:");
 
             for (int i = 0; i < arraySize; i++)
             {
-                if (printPosition)
+                if (i < arraySize - 1)
                 {
-                    Console.WriteLine($"Name: {dataPointsArray[i].Name,-20} | Data Type: {dataPointsArray[i].DataType,-9} | " +
-                    $"Scope: {dataPointsArray[i].Usage,-7} | Required: {dataPointsArray[i].Required,-5} | " +
-                    $"Visible: {dataPointsArray[i].Visible,-5} |  Value: {dataPointsArray[i].Value,-20} | " +
-                    $"Byte Position: {dataPointsArray[i].BytePosition,-3} | Bool Position: {dataPointsArray[i].BoolPosition}");
+                    Console.Write("       ├── ");
                 }
                 else
                 {
-                    Console.WriteLine($"Name: {dataPointsArray[i].Name,-20} | Data Type: {dataPointsArray[i].DataType,-9} | Scope: {dataPointsArray[i].Usage,-7} | Required: {dataPointsArray[i].Required,-5} | Visible: {dataPointsArray[i].Visible,-5} |  Value: {dataPointsArray[i].Value,-20}");
+                    Console.Write("       └── ");
+                }
+
+                if (printPosition == true)
+                {
+                    Console.WriteLine($"Name: {dataPointsArray[i].Name,-20} | Data Type: {dataPointsArray[i].DataType,-9} | " +
+                        $"Scope: {dataPointsArray[i].Usage,-7} | Required: {dataPointsArray[i].Required,-5} | " +
+                        $"Visible: {dataPointsArray[i].Visible,-5} |  Value: {dataPointsArray[i].Value,-20} | " +
+                        $"Byte Position: {dataPointsArray[i].BytePosition,-3} | Bool Position: {dataPointsArray[i].BoolPosition}");
+                }
+                else if (printPosition == false)
+                {
+                    Console.WriteLine($"Name: {dataPointsArray[i].Name,-20} | Data Type: {dataPointsArray[i].DataType,-9} | " +
+                        $"Scope: {dataPointsArray[i].Usage,-7} | Required: {dataPointsArray[i].Required,-5} | " +
+                        $"Visible: {dataPointsArray[i].Visible,-5} |  Value: {dataPointsArray[i].Value,-20}");
                 }
             }
         }
@@ -1748,7 +1785,8 @@ namespace UnitTesting
             }
 
             await project.SetTagValueAsync(aoiTagPath, mode, new_byteArray, DataType.BYTE_ARRAY);
-            Console.WriteLine($"{FormatLineType("STATUS")}{parameterName,-20} | {oldParameterValue,20} -> {newParameterValue,-20}");
+            string setParamIntro = $"Change {parameterName} value:".PadRight(40, ' ');
+            Console.WriteLine($"{FormatLineType("STATUS")}{setParamIntro} {oldParameterValue,20} -> {newParameterValue,-20}");
         }
 
         private static DataType GetDataType(string dataType)
@@ -1924,12 +1962,14 @@ namespace UnitTesting
         /// <returns>A Task that changes the controller mode.</returns>
         private static async Task ChangeControllerMode_Async(string commPath, string mode, LogixProject project)
         {
+            mode = mode.ToUpper().Trim();
+
             var requestedControllerMode = default(LogixProject.RequestedControllerMode);
-            if (mode == "Program")
+            if (mode == "PROGRAM")
                 requestedControllerMode = LogixProject.RequestedControllerMode.Program;
-            else if (mode == "Run")
+            else if (mode == "RUN")
                 requestedControllerMode = LogixProject.RequestedControllerMode.Run;
-            else if (mode == "Test")
+            else if (mode == "TEST")
                 requestedControllerMode = LogixProject.RequestedControllerMode.Test;
             else
                 Console.WriteLine($"{FormatLineType("ERROR")}{mode} is not supported.");
@@ -2102,6 +2142,21 @@ namespace UnitTesting
             {
                 Console.Write(WrapText($"{FormatLineType("SUCCESS")}{tagName} expected value ({expectedValue}) & actual value ({actualValue}) EQUAL.", 9, 125));
                 return 0;
+            }
+        }
+
+        public static void EnsureFolderExists(string folderPath)
+        {
+            // Check if the folder exists
+            if (!Directory.Exists(folderPath))
+            {
+                // Create the folder if it doesn't exist
+                Directory.CreateDirectory(folderPath);
+                Console.WriteLine($"Folder created at: {folderPath}");
+            }
+            else
+            {
+                Console.WriteLine($"Folder already exists at: {folderPath}");
             }
         }
     }
