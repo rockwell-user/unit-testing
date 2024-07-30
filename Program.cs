@@ -1,25 +1,28 @@
-// ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------
 //
-// FileName: Logix_Program.cs
+// FileName: UnitTest_Program.cs
 // FileType: Visual C# Source file
-// Author : Rockwell Automation
+// Author : Rockwell Automation Engineering
 // Created : 2024
-// Description : This script provides an example test in a CI/CD pipeline utilizing Studio 5000 Logix Designer SDK and Factory Talk Logix Echo SDK.
+// Description : This script conducts Add-On Instruction unit testing, utilizing Studio 5000 Logix Designer SDK and Factory Talk Logix Echo SDK.
 //
-// ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 using Google.Protobuf;
-using LogixEcho_ClassLibrary;
+using L5Xs;
+using LogixEcho;
 using OfficeOpenXml;
 using RockwellAutomation.LogixDesigner;
 using System.Collections;
 using System.Text;
 using System.Xml.Linq;
 using static RockwellAutomation.LogixDesigner.LogixProject;
-using DataType = RockwellAutomation.LogixDesigner.LogixProject.DataType;
 
 namespace UnitTesting
 {
+    /// <summary>
+    /// This class contains the methods and logic to programmatically conduct unit testing for Studio 5000 Logix Designer Add-On Instructions.
+    /// </summary>
     public class UnitTest
     {
         /// <summary>
@@ -73,7 +76,7 @@ namespace UnitTesting
             //string aoiTagScope = "";
             bool keepACD;
             bool keepL5Xs;
-            string aoiFilePath = "";
+            string aoiFileName = "";
 
             // Increment through each Excel Workbook in the specified folder.
             for (int testFileNumber = 0; testFileNumber < (orderedExcelFiles.Count); testFileNumber++)
@@ -90,7 +93,7 @@ namespace UnitTesting
                     //aoiTagScope = worksheet.Cells[11, 15].Value?.ToString()!.Trim()!;
                     keepACD = ToBoolean(worksheet.Cells[9, 4].Value?.ToString()!.Trim()!);
                     keepL5Xs = ToBoolean(worksheet.Cells[9, 14].Value?.ToString()!.Trim()!);
-                    aoiFilePath = worksheet.Cells[9, 2].Value?.ToString()!.Trim()!;
+                    aoiFileName = worksheet.Cells[9, 2].Value?.ToString()!.Trim()!;
                 }
 
                 //string githubPath = @"C:\examplefolder";                                           // 1st incoming argument = GitHub folder path
@@ -108,24 +111,23 @@ namespace UnitTesting
                 string excelFileReportPath = Path.Combine(exampleTestReportsFolder_filePath, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.xlsx"); // new excel test report filename
 
                 // INCLUDE NEAR TOP
-                string aoi_L5Xfilepath = @"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\" + aoiFilePath; // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-                // DELETE LATER: the above had this WetBulbTemperature_AOI.L5X
-                string generatedRung_XMLfilepath = CopyXmlFile(aoi_L5Xfilepath, false);// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-                string? aoiName = GetAttributeValue(generatedRung_XMLfilepath, "AddOnInstructionDefinition", "Name", false); // The name of the AOI being testing.
+                string aoi_L5Xfilepath = tempFolder + aoiFileName; // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+                string convertedAOIrung_L5Xfilepath = CopyXmlFile(aoi_L5Xfilepath, false);// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+                string? aoiName = GetAttributeValue(convertedAOIrung_L5Xfilepath, "AddOnInstructionDefinition", "Name", false); // The name of the AOI being testing.
                 string aoiTagScope = $"Controller/Tags/Tag[@Name='AOI_{aoiName}']";
 
                 // Create a new ACD project file.
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START creating & opening ACD file...");
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START creating & opening new ACD unit test application file...");
                 string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\",
                     DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiName + "_UnitTest.ACD"); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
                 //string acdPath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\20240716141455_AOIunittest.ACD";
-                string? softwareRevision_string = GetAttributeValue(generatedRung_XMLfilepath, "RSLogix5000Content", "SoftwareRevision", false);
+                string? softwareRevision_string = GetAttributeValue(convertedAOIrung_L5Xfilepath, "RSLogix5000Content", "SoftwareRevision", false);
                 uint softwareRevision_uint = ConvertStringToUint(softwareRevision_string);
                 string processorTypeName = "1756-L85E";
                 string controllerName2 = "UnitTest_Controller";
                 LogixProject project = await CreateNewProjectAsync(acdPath, softwareRevision_uint, processorTypeName, controllerName2);
-                Console.WriteLine($"{FormatLineType("SUCCESS")}File created at '{acdPath}'");
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE creating & opening ACD file\n---");
+                Console.WriteLine($"{FormatLineType("STATUS")}File created at '{acdPath}'");
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE creating & opening new ACD unit test application file\n---");
 
                 //// =========================================================================
                 //// LOGGER INFO (UNCOMMENT IF TROUBLESHOOTING)
@@ -157,26 +159,52 @@ namespace UnitTesting
 
                 Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START preparing programmatically created ACD...");
                 // Create an empty program in the unscheduled folder of the new ACD application.
-                string emptyProgramContents_L5X = GetEmptyProgramXMLContents(programName, routineName, controllerName, softwareRevision_string);
+                string emptyProgramContents_L5X = XMLfiles.GetEmptyProgramXMLContents(programName, routineName, controllerName, softwareRevision_string);
                 string emptyProgram_L5Xfilepath = tempFolder + "generated_programtarget.L5X";
                 File.WriteAllText(emptyProgram_L5Xfilepath, emptyProgramContents_L5X);
                 string xPath_programs = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
                 await project.PartialImportFromXmlFileAsync(xPath_programs, emptyProgram_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+                await project.SaveAsync();
 
                 // Add a task to the ACD application. The empty program is automatically grabbed.
-                string taskContents_L5X = GetTaskXMLContents(taskName, programName, controllerName, softwareRevision_string);
+                string taskContents_L5X = XMLfiles.GetTaskXMLContents(taskName, programName, controllerName, softwareRevision_string);
                 string task_L5Xfilepath = tempFolder + "generated_tasktarget.L5X";
                 File.WriteAllText(task_L5Xfilepath, taskContents_L5X);
                 string xPath_tasks = @"Controller/Tasks";  // include program in task
                 await project.PartialImportFromXmlFileAsync(xPath_tasks, task_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+                await project.SaveAsync();
 
+                // Import the AOI.L5X being tested
                 string xPath_aoiDef = @"Controller/AddOnInstructionDefinitions";
                 await project.PartialImportFromXmlFileAsync(xPath_aoiDef, aoi_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+                await project.SaveAsync();
 
-                // XML FILE MANIPULATIONS
-                ConvertAOItoRUNGxml(generatedRung_XMLfilepath, routineName, programName, false);
-                string xPath4 = @"Controller/Programs/Program[@Name='P00_AOI_Testing']/Routines";
-                await project.PartialImportFromXmlFileAsync(xPath4, generatedRung_XMLfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+                // Import FAULTRECORD UDT
+                string udtContents_L5X = XMLfiles.GetFaultRecordUDTXMLContents(controllerName);
+                string udt_L5Xfilepath = tempFolder + "generated_FAULTRECORD.L5X";
+                File.WriteAllText(udt_L5Xfilepath, udtContents_L5X);
+                string xPath_udtDef = @"Controller/DataTypes";
+                await project.PartialImportFromXmlFileAsync(xPath_udtDef, udt_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+                await project.SaveAsync();
+
+                // Import Fault Handler program -------------------------------------------------------------------------------------------------------------STILL IMPORTING TO UNSCHEDULED
+                string faultHandlerContents_L5X = XMLfiles.GetFaultHandlerProgramXMLContents(controllerName);
+                string faultHandler_L5Xfilepath = tempFolder + "generated_FaultHandlerProgram.L5X";
+                File.WriteAllText(faultHandler_L5Xfilepath, faultHandlerContents_L5X);
+                string xPath_faultHandlerDef = @"Controller/Programs";
+                await project.PartialImportFromXmlFileAsync(xPath_faultHandlerDef, faultHandler_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+
+                // Add fault handling rung to rung 0
+                string faultHandlingRungContents_L5X = XMLfiles.GetFaultHandlingRungXMLContents(controllerName);
+                string faultHandlingRung_L5Xfilepath = tempFolder + "generated_faulthandlingrung.L5X";
+                File.WriteAllText(faultHandlingRung_L5Xfilepath, faultHandlingRungContents_L5X);
+                string xPath_faultHandlingRung = @"Controller/Programs/Program[@Name='" + programName + @"']/Routines";
+                await project.PartialImportFromXmlFileAsync(xPath_faultHandlingRung, faultHandlingRung_L5Xfilepath, ImportCollisionOptions.OverwriteOnColl);
+
+                // Add custom AOI rung to rung 1
+                ConvertAOItoRUNGxml(convertedAOIrung_L5Xfilepath, routineName, programName, false);
+                string xPath_convertedAOIrung = @"Controller/Programs/Program[@Name='" + programName + @"']/Routines";
+                await project.PartialImportFromXmlFileAsync(xPath_convertedAOIrung, convertedAOIrung_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
                 await project.SaveAsync();
                 Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE preparing programmatically created ACD\n---");
 
@@ -208,7 +236,7 @@ namespace UnitTesting
                 //Console.WriteLine("current fullTagPath: " + aoiTagScope);
                 ByteString udtoraoi_byteString = GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online);
 
-                CDTTParameters[] testParams = GetAOIParameters_FromL5X(generatedRung_XMLfilepath); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+                CDTTParameters[] testParams = GetAOIParameters_FromL5X(convertedAOIrung_L5Xfilepath); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
                 testParams = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true);
                 Print_AOIParameters(testParams, aoiName, false);
 
@@ -224,6 +252,7 @@ namespace UnitTesting
                     {
                         if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Output")
                         {
+                            //SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project).GetAwaiter().GetResult();
                             await SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project);
                         }
                     }
@@ -272,14 +301,14 @@ namespace UnitTesting
                     Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{emptyProgram_L5Xfilepath}'");
                     File.Delete(task_L5Xfilepath);
                     Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{task_L5Xfilepath}'");
-                    File.Delete(generatedRung_XMLfilepath);
-                    Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{generatedRung_XMLfilepath}'");
+                    File.Delete(convertedAOIrung_L5Xfilepath);
+                    Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{convertedAOIrung_L5Xfilepath}'");
                 }
                 else
                 {
                     Console.WriteLine($"{FormatLineType("STATUS")}Retained '{emptyProgram_L5Xfilepath}'");
                     Console.WriteLine($"{FormatLineType("STATUS")}Retained '{task_L5Xfilepath}'");
-                    Console.WriteLine($"{FormatLineType("STATUS")}Retained '{generatedRung_XMLfilepath}'");
+                    Console.WriteLine($"{FormatLineType("STATUS")}Retained '{convertedAOIrung_L5Xfilepath}'");
                 }
                 Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE keeping/deleting programmatically generated L5X files\n---");
 
@@ -393,42 +422,7 @@ namespace UnitTesting
         }
 
         #region METHODS: manipulate L5X
-        public static string GetEmptyProgramXMLContents(string programName, string routineName, string controllerName, string softwareRevision)
-        {
-            return @"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
-                    <RSLogix5000Content SchemaRevision=""1.0"" SoftwareRevision=""" + softwareRevision + @""" TargetName=""" + programName + @""" TargetType =""Program"" ContainsContext=""true"" ExportDate=""" + DateTime.Now.ToString("ddd MMM dd HH:mm:ss yyyy") + @""" ExportOptions=""References NoRawData L5KData DecoratedData Context Dependencies ForceProtectedEncoding AllProjDocTrans"">
-                        <Controller Use=""Context"" Name=""" + controllerName + @""">
-                            <Programs Use=""Context"">
-                                <Program Use=""Target"" Name=""" + programName + @""" TestEdits=""false"" MainRoutineName=""" + routineName + @""" Disabled=""false"" UseAsFolder=""false"">
-                                    <Tags/>
-                                    <Routines>
-                                        <Routine Name=""" + routineName + @""" Type=""RLL""/>
-                                    </Routines>
-                                </Program>
-                            </Programs>
-                        </Controller>
-                    </RSLogix5000Content>";
-        }
 
-        public static string GetTaskXMLContents(string taskName, string programName, string controllerName, string softwareRevision)
-        {
-            return @"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
-                    <RSLogix5000Content SchemaRevision=""1.0"" SoftwareRevision=""" + softwareRevision + @""" TargetName=""ImpExp"" TargetType=""Task"" ContainsContext=""true"" ExportDate=""" + DateTime.Now.ToString("ddd MMM dd HH:mm:ss yyyy") + @""" ExportOptions=""References NoRawData L5KData DecoratedData Context ProductDefinedTypes IOTags Dependencies ForceProtectedEncoding AllProjDocTrans"">
-                        <Controller Use=""Context"" Name=""" + controllerName + @""">
-                            <Programs Use=""Context"">
-                                <Program Use=""Reference"" Name=""" + programName + @""">
-                                </Program>
-                            </Programs>
-                            <Tasks Use=""Context"">
-                                <Task Use=""Target"" Name=""" + taskName + @""" Type=""CONTINUOUS"" Priority=""10"" Watchdog=""500"" DisableUpdateOutputs=""false"" InhibitTask=""false"">
-                                    <ScheduledPrograms>
-                                        <ScheduledProgram Name=""" + programName + @"""/>
-                                    </ScheduledPrograms>
-                                </Task>
-                            </Tasks>
-                        </Controller>
-                    </RSLogix5000Content>";
-        }
 
         public static void ConvertAOItoRUNGxml(string xmlFilePath, string routineName, string programName, bool printOut)
         {
@@ -488,7 +482,7 @@ namespace UnitTesting
 
             AddElementToComplexElement(xmlFilePath, "RLLContent", "Rung", printOut);
             AddAttributeToComplexElement(xmlFilePath, "Rung", "Use", "Target", printOut);
-            AddAttributeToComplexElement(xmlFilePath, "Rung", "Number", "0", printOut);
+            AddAttributeToComplexElement(xmlFilePath, "Rung", "Number", "1", printOut);
             AddAttributeToComplexElement(xmlFilePath, "Rung", "Type", "N", printOut);
 
             AddElementToComplexElement(xmlFilePath, "Rung", "Text", printOut);
@@ -1051,17 +1045,17 @@ namespace UnitTesting
         private static void Print_AOIParameters(CDTTParameters[] dataPointsArray, string aoiName, bool printPosition)
         {
             int arraySize = dataPointsArray.Length;
-            Console.WriteLine($"Print {aoiName} Parameters:");
+            Console.WriteLine($"{FormatLineType("STATUS")}Print {aoiName} parameters");
 
             for (int i = 0; i < arraySize; i++)
             {
                 if (i < arraySize - 1)
                 {
-                    Console.Write("       ├── ");
+                    Console.Write("           ├── ");
                 }
                 else
                 {
-                    Console.Write("       └── ");
+                    Console.Write("           └── ");
                 }
 
                 if (printPosition == true)
@@ -1199,11 +1193,11 @@ namespace UnitTesting
                 {
                     FileInfo deleteThisFile = orderedFiles[i];
                     deleteThisFile.Delete();
-                    Console.WriteLine($"{FormatLineType("SUCCESS")}Deleted '{deleteThisFile.FullName}'");
+                    Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{deleteThisFile.FullName}'");
                 }
             }
             else
-                Console.WriteLine($"{FormatLineType("SUCCESS")}No files needed to be deleted (currently {orderedFiles.Count} test files).");
+                Console.WriteLine($"{FormatLineType("STATUS")}No files needed to be deleted (currently {orderedFiles.Count} test files).");
         }
         #endregion
 
