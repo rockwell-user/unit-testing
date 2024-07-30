@@ -59,10 +59,7 @@ namespace UnitTesting
             Console.WriteLine("========================================================================================================================");
             Console.WriteLine("  ====================================================================================================================\n");
 
-            // From a string array to a list, store the name (including their path) for each excel workbook.
-            // With the current implementation, each Excel Workbook tests a single Add-On Instruction.
-            string[] excelFiles = Directory.GetFiles(unitTestExcelWorkbooks_folderPath);
-            List<FileInfo> orderedExcelFiles = [.. excelFiles.Select(f => new FileInfo(f)).OrderBy(f => f.CreationTime)];
+
 
             // Parameters from the excel sheet that determine the test to be run. 
             string echoChassisName = "UnitTest_Chassis";
@@ -78,9 +75,15 @@ namespace UnitTesting
             bool keepL5Xs;
             string aoiFileName = "";
 
+            // From a string array to a list, store the name (including their path) for each excel workbook.
+            // With the current implementation, each Excel Workbook tests a single Add-On Instruction.
+            string[] excelFiles = Directory.GetFiles(unitTestExcelWorkbooks_folderPath);
+            List<FileInfo> orderedExcelFiles = [.. excelFiles.Select(f => new FileInfo(f)).OrderBy(f => f.CreationTime)];
+
             // Increment through each Excel Workbook in the specified folder.
             for (int testFileNumber = 0; testFileNumber < (orderedExcelFiles.Count); testFileNumber++)
             {
+                //var currentExcelUnitTest_filePath;  <- this could be the sole incoming variable
                 var currentExcelUnitTest_filePath = orderedExcelFiles[testFileNumber].FullName;
                 FileInfo existingFile = new FileInfo(currentExcelUnitTest_filePath);
                 using (ExcelPackage package = new ExcelPackage(existingFile))
