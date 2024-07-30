@@ -42,294 +42,278 @@ namespace UnitTesting
 
         static async Task Main()
         {
+            // static async Task Main(string[] args)
+            // {
+            //      string firstArg = args.Length > 0 ? args[1] : "default value";
 
-            // THE ONLY PARAMETER THAT WILL NEED TO BE MODIFIED (MAYBE PASS THIS IN FROM JENKINS)
-            // Parameter to be specified in jenkins
-            // test_filePath1 is the name of the generated program target xml
-            string unitTestExcelWorkbooks_folderPath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest"; // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-            string exampleTestReportsFolder_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports";// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-            //AOIParameters[] testParams = GetAOIParameters_FromL5X(@"C:\Users\ASYost\Desktop\UnitTesting\AOI_L5Xs\WetBulbTemperature_AOI.L5X");
-            //Print_AOIParameters(testParams);
+            // INCOMING VARIABLES TO FIGURE OUT
+            // string inputExcel_filePath
+            // bool createNewTestReport
+            // string outputExcel_filepath 
+            string inputExcel_UnitTestSetup_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest\WetBulbTemperature_new.xlsx";
+            bool createNewExcelTestReport = true;
 
+            string exampleTestReportsFolder_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports";
+            string outputExcel_UnitTestResults_filepath = Path.Combine(exampleTestReportsFolder_filePath, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.xlsx"); ;
 
-            // Title Banner 
-            Console.WriteLine("\n  ====================================================================================================================");
-            Console.WriteLine("========================================================================================================================");
-            Console.WriteLine("                      UNIT TESTING | " + DateTime.Now + " " + TimeZoneInfo.Local);
-            Console.WriteLine("========================================================================================================================");
-            Console.WriteLine("  ====================================================================================================================\n");
+            string tempFolder = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\";// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
 
-
-
-            // Parameters from the excel sheet that determine the test to be run. 
+            // The below parameters are used to create the ACD application that will be testing the Add-On Instruction specified in the input excel sheet. 
             string echoChassisName = "UnitTest_Chassis";
             string controllerName = "UnitTest_Controller";
             string taskName = "T00_AOI_Testing";
             string programName = "P00_AOI_Testing";
             string routineName = "R00_AOI_Testing";
-            string tempFolder = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\";// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-            //string acdFilePath = "";
-            //string aoiTagName = "";
-            //string aoiTagScope = "";
             bool keepACD;
             bool keepL5Xs;
             string aoiFileName = "";
 
-            // From a string array to a list, store the name (including their path) for each excel workbook.
-            // With the current implementation, each Excel Workbook tests a single Add-On Instruction.
-            string[] excelFiles = Directory.GetFiles(unitTestExcelWorkbooks_folderPath);
-            List<FileInfo> orderedExcelFiles = [.. excelFiles.Select(f => new FileInfo(f)).OrderBy(f => f.CreationTime)];
 
-            // Increment through each Excel Workbook in the specified folder.
-            for (int testFileNumber = 0; testFileNumber < (orderedExcelFiles.Count); testFileNumber++)
+            FileInfo existingFile = new FileInfo(inputExcel_UnitTestSetup_filePath);
+            using (ExcelPackage package = new ExcelPackage(existingFile))
             {
-                //var currentExcelUnitTest_filePath;  <- this could be the sole incoming variable
-                var currentExcelUnitTest_filePath = orderedExcelFiles[testFileNumber].FullName;
-                FileInfo existingFile = new FileInfo(currentExcelUnitTest_filePath);
-                using (ExcelPackage package = new ExcelPackage(existingFile))
+                //get the first worksheet in the workbook
+                ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
+                //controllerName = worksheet.Cells[11, 2].Value?.ToString()!.Trim()!;
+                //acdFilePath = worksheet.Cells[11, 3].Value?.ToString()!.Trim()!;
+                //aoiTagName = worksheet.Cells[11, 11].Value?.ToString()!.Trim()!;
+                //aoiTagScope = worksheet.Cells[11, 15].Value?.ToString()!.Trim()!;
+                keepACD = ToBoolean(worksheet.Cells[9, 4].Value?.ToString()!.Trim()!);
+                keepL5Xs = ToBoolean(worksheet.Cells[9, 14].Value?.ToString()!.Trim()!);
+                aoiFileName = worksheet.Cells[9, 2].Value?.ToString()!.Trim()!;
+            }
+
+            //string githubPath = @"C:\examplefolder";                                           // 1st incoming argument = GitHub folder path
+            //string acdFilename = "CICD_test.ACD";                                          // 2nd incoming argument = Logix Designer ACD filename
+            string name_mostRecentCommit = "example name";                                // 3rd incoming argument = name of person assocatied with most recent git commit
+            string email_mostRecentCommit = "example email";                               // 4th incoming argument = email of person associated with most recent git commit
+            string message_mostRecentCommit = "example commmit message";                             // 5th incoming argument = message provided in the most recent git commit
+            string hash_mostRecentCommit = "example commit hash";                                // 6th incoming argument = hash ID from most recent git commit
+            string jenkinsJobName = "example jenkins job";                                       // 7th incoming argument = the Jenkins job name
+            string jenkinsBuildNumber = "example jenkins build number";                                   // 8th incoming argument = the Jenkins job build number
+                                                                                                          //string acdFilePath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles\CICD_test.ACD"; // file path to ACD project
+                                                                                                          // string textFileReportDirectory = githubPath + @"test-reports\textFiles\";   // folder path to text test reports
+                                                                                                          // string excelFileReportDirectory = githubPath + @"test-reports\excelFiles\"; // folder path to excel test reports
+                                                                                                          // string textFileReportPath = Path.Combine(textFileReportDirectory, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.txt");    // new text test report filename
+                                                                                                          //string outputExcel_UnitTestResults_filepath = Path.Combine(exampleTestReportsFolder_filePath, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.xlsx"); // new excel test report filename
+
+            // INCLUDE NEAR TOP
+            string aoi_L5Xfilepath = tempFolder + aoiFileName; // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+            string convertedAOIrung_L5Xfilepath = CopyXmlFile(aoi_L5Xfilepath, false);// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+            string? aoiName = GetAttributeValue(convertedAOIrung_L5Xfilepath, "AddOnInstructionDefinition", "Name", false); // The name of the AOI being testing.
+            string aoiTagScope = $"Controller/Tags/Tag[@Name='AOI_{aoiName}']";
+
+            // Create a new ACD project file.
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START creating & opening new ACD unit test application file...");
+            string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\",
+                DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiName + "_UnitTest.ACD"); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+            //string acdPath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\20240716141455_AOIunittest.ACD";
+            string? softwareRevision_string = GetAttributeValue(convertedAOIrung_L5Xfilepath, "RSLogix5000Content", "SoftwareRevision", false);
+            uint softwareRevision_uint = ConvertStringToUint(softwareRevision_string);
+            string processorTypeName = "1756-L85E";
+            string controllerName2 = "UnitTest_Controller";
+            LogixProject project = await CreateNewProjectAsync(acdPath, softwareRevision_uint, processorTypeName, controllerName2);
+            Console.WriteLine($"{FormatLineType("STATUS")}File created at '{acdPath}'");
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE creating & opening new ACD unit test application file\n---");
+
+            //// =========================================================================
+            //// LOGGER INFO (UNCOMMENT IF TROUBLESHOOTING)
+            //// Note: may need to add using RockwellAutomation.LogixDesigner.Logging;
+            //var logger = new StdOutEventLogger();
+            //project.AddEventHandler(logger);
+            //// =========================================================================
+
+            // Executed only once on the first AOI tested.
+            if (createNewExcelTestReport)
+            {
+                // Create an excel test report to be filled out during testing.
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START setting up excel test report workbook...");
+                CreateFormattedExcelFile(outputExcel_UnitTestResults_filepath, acdPath, name_mostRecentCommit, email_mostRecentCommit,
+                    jenkinsBuildNumber, jenkinsJobName, hash_mostRecentCommit, message_mostRecentCommit);
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE setting up excel test report workbook...\n---");
+
+                // Check the test-reports folder and if over the specified file number limit, delete the oldest test files.
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START checking test-reports folder...");
+                CleanTestReportsFolder(exampleTestReportsFolder_filePath, 5);
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE checking test-reports folder...\n---");
+            }
+
+            // Set up emulated controller (based on the specified ACD file path) if one does not yet exist. If not, continue.
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START setting up Factory Talk Logix Echo emulated controller...");
+            string commPath = SetUpEmulatedController_Sync(acdPath, echoChassisName, controllerName);
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE setting up Factory Talk Logix Echo emulated controller\n---");
+
+
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START preparing programmatically created ACD...");
+            // Create an empty program in the unscheduled folder of the new ACD application.
+            string emptyProgramContents_L5X = XMLfiles.GetEmptyProgramXMLContents(programName, routineName, controllerName, softwareRevision_string);
+            string emptyProgram_L5Xfilepath = tempFolder + "generated_programtarget.L5X";
+            File.WriteAllText(emptyProgram_L5Xfilepath, emptyProgramContents_L5X);
+            string xPath_programs = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
+            await project.PartialImportFromXmlFileAsync(xPath_programs, emptyProgram_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            await project.SaveAsync();
+
+            // Add a task to the ACD application. The empty program is automatically grabbed.
+            string taskContents_L5X = XMLfiles.GetTaskXMLContents(taskName, programName, controllerName, softwareRevision_string);
+            string task_L5Xfilepath = tempFolder + "generated_tasktarget.L5X";
+            File.WriteAllText(task_L5Xfilepath, taskContents_L5X);
+            string xPath_tasks = @"Controller/Tasks";  // include program in task
+            await project.PartialImportFromXmlFileAsync(xPath_tasks, task_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            await project.SaveAsync();
+
+            // Import the AOI.L5X being tested
+            string xPath_aoiDef = @"Controller/AddOnInstructionDefinitions";
+            await project.PartialImportFromXmlFileAsync(xPath_aoiDef, aoi_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            await project.SaveAsync();
+
+            // Import FAULTRECORD UDT
+            string udtContents_L5X = XMLfiles.GetFaultRecordUDTXMLContents(controllerName);
+            string udt_L5Xfilepath = tempFolder + "generated_FAULTRECORD.L5X";
+            File.WriteAllText(udt_L5Xfilepath, udtContents_L5X);
+            string xPath_udtDef = @"Controller/DataTypes";
+            await project.PartialImportFromXmlFileAsync(xPath_udtDef, udt_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            await project.SaveAsync();
+
+            // Import Fault Handler program -------------------------------------------------------------------------------------------------------------STILL IMPORTING TO UNSCHEDULED
+            string faultHandlerContents_L5X = XMLfiles.GetFaultHandlerProgramXMLContents(controllerName);
+            string faultHandler_L5Xfilepath = tempFolder + "generated_FaultHandlerProgram.L5X";
+            File.WriteAllText(faultHandler_L5Xfilepath, faultHandlerContents_L5X);
+            string xPath_faultHandlerDef = @"Controller/Programs";
+            await project.PartialImportFromXmlFileAsync(xPath_faultHandlerDef, faultHandler_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+
+            // Add fault handling rung to rung 0
+            string faultHandlingRungContents_L5X = XMLfiles.GetFaultHandlingRungXMLContents(controllerName);
+            string faultHandlingRung_L5Xfilepath = tempFolder + "generated_faulthandlingrung.L5X";
+            File.WriteAllText(faultHandlingRung_L5Xfilepath, faultHandlingRungContents_L5X);
+            string xPath_faultHandlingRung = @"Controller/Programs/Program[@Name='" + programName + @"']/Routines";
+            await project.PartialImportFromXmlFileAsync(xPath_faultHandlingRung, faultHandlingRung_L5Xfilepath, ImportCollisionOptions.OverwriteOnColl);
+
+            // Add custom AOI rung to rung 1
+            ConvertAOItoRUNGxml(convertedAOIrung_L5Xfilepath, routineName, programName, false);
+            string xPath_convertedAOIrung = @"Controller/Programs/Program[@Name='" + programName + @"']/Routines";
+            await project.PartialImportFromXmlFileAsync(xPath_convertedAOIrung, convertedAOIrung_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            await project.SaveAsync();
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE preparing programmatically created ACD\n---");
+
+            // Change controller mode to program & verify.
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START changing controller to PROGRAM...");
+            ChangeControllerMode_Async(commPath, "PROGRAM", project).GetAwaiter().GetResult();
+            if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "PROGRAM")
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] SUCCESS changing controller to PROGRAM\n---");
+            else
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] FAILURE changing controller to PROGRAM\n---");
+
+            // Download project.
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START downloading ACD file...");
+            DownloadProject_Async(commPath, project).GetAwaiter().GetResult();
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] SUCCESS downloading ACD file\n---");
+
+            // Change controller mode to run.
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START Changing controller to RUN...");
+            ChangeControllerMode_Async(commPath, "RUN", project).GetAwaiter().GetResult();
+            if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "RUN")
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] SUCCESS changing controller to RUN\n---");
+            else
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] FAILURE changing controller to RUN\n---");
+
+            // ---------------------------------------------------------------------------------------------------------------------------
+
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START {aoiName} unit testing...");
+            int failureCondition = 0;
+            //Console.WriteLine("current fullTagPath: " + aoiTagScope);
+            ByteString udtoraoi_byteString = GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online);
+
+            CDTTParameters[] testParams = GetAOIParameters_FromL5X(convertedAOIrung_L5Xfilepath); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+            testParams = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true);
+            Print_AOIParameters(testParams, aoiName, false);
+
+            // Iterate through and verify each test case (each column in the input excel sheet).
+            int testCases = GetPopulatedColumnCount(inputExcel_UnitTestSetup_filePath, 18) - 1;
+            for (int columnNumber = 4; columnNumber < (testCases + 4); columnNumber++)
+            {
+                string testBannerContents = $"test {columnNumber - 3}/{testCases}";
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START {testBannerContents}...");
+                // Add tests
+                Dictionary<string, string> currentColumn = GetExcelTestValues(inputExcel_UnitTestSetup_filePath, columnNumber);
+                foreach (var kvp in currentColumn)
                 {
-                    //get the first worksheet in the workbook
-                    ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
-                    //controllerName = worksheet.Cells[11, 2].Value?.ToString()!.Trim()!;
-                    //acdFilePath = worksheet.Cells[11, 3].Value?.ToString()!.Trim()!;
-                    //aoiTagName = worksheet.Cells[11, 11].Value?.ToString()!.Trim()!;
-                    //aoiTagScope = worksheet.Cells[11, 15].Value?.ToString()!.Trim()!;
-                    keepACD = ToBoolean(worksheet.Cells[9, 4].Value?.ToString()!.Trim()!);
-                    keepL5Xs = ToBoolean(worksheet.Cells[9, 14].Value?.ToString()!.Trim()!);
-                    aoiFileName = worksheet.Cells[9, 2].Value?.ToString()!.Trim()!;
+                    if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Output")
+                    {
+                        //SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project).GetAwaiter().GetResult();
+                        await SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project);
+                    }
                 }
 
-                //string githubPath = @"C:\examplefolder";                                           // 1st incoming argument = GitHub folder path
-                //string acdFilename = "CICD_test.ACD";                                          // 2nd incoming argument = Logix Designer ACD filename
-                string name_mostRecentCommit = "example name";                                // 3rd incoming argument = name of person assocatied with most recent git commit
-                string email_mostRecentCommit = "example email";                               // 4th incoming argument = email of person associated with most recent git commit
-                string message_mostRecentCommit = "example commmit message";                             // 5th incoming argument = message provided in the most recent git commit
-                string hash_mostRecentCommit = "example commit hash";                                // 6th incoming argument = hash ID from most recent git commit
-                string jenkinsJobName = "example jenkins job";                                       // 7th incoming argument = the Jenkins job name
-                string jenkinsBuildNumber = "example jenkins build number";                                   // 8th incoming argument = the Jenkins job build number
-                                                                                                              //string acdFilePath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles\CICD_test.ACD"; // file path to ACD project
-                                                                                                              // string textFileReportDirectory = githubPath + @"test-reports\textFiles\";   // folder path to text test reports
-                                                                                                              // string excelFileReportDirectory = githubPath + @"test-reports\excelFiles\"; // folder path to excel test reports
-                                                                                                              // string textFileReportPath = Path.Combine(textFileReportDirectory, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.txt");    // new text test report filename
-                string excelFileReportPath = Path.Combine(exampleTestReportsFolder_filePath, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.xlsx"); // new excel test report filename
-
-                // INCLUDE NEAR TOP
-                string aoi_L5Xfilepath = tempFolder + aoiFileName; // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-                string convertedAOIrung_L5Xfilepath = CopyXmlFile(aoi_L5Xfilepath, false);// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-                string? aoiName = GetAttributeValue(convertedAOIrung_L5Xfilepath, "AddOnInstructionDefinition", "Name", false); // The name of the AOI being testing.
-                string aoiTagScope = $"Controller/Tags/Tag[@Name='AOI_{aoiName}']";
-
-                // Create a new ACD project file.
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START creating & opening new ACD unit test application file...");
-                string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\",
-                    DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiName + "_UnitTest.ACD"); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-                //string acdPath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\20240716141455_AOIunittest.ACD";
-                string? softwareRevision_string = GetAttributeValue(convertedAOIrung_L5Xfilepath, "RSLogix5000Content", "SoftwareRevision", false);
-                uint softwareRevision_uint = ConvertStringToUint(softwareRevision_string);
-                string processorTypeName = "1756-L85E";
-                string controllerName2 = "UnitTest_Controller";
-                LogixProject project = await CreateNewProjectAsync(acdPath, softwareRevision_uint, processorTypeName, controllerName2);
-                Console.WriteLine($"{FormatLineType("STATUS")}File created at '{acdPath}'");
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE creating & opening new ACD unit test application file\n---");
-
-                //// =========================================================================
-                //// LOGGER INFO (UNCOMMENT IF TROUBLESHOOTING)
-                //// Note: may need to add using RockwellAutomation.LogixDesigner.Logging;
-                //var logger = new StdOutEventLogger();
-                //project.AddEventHandler(logger);
-                //// =========================================================================
-
-                // Executed only once on the first AOI tested.
-                if (testFileNumber == 0)
+                if (await ReadControllerMode_Async(commPath, project) != "FAULTED")
                 {
-                    // Create an excel test report to be filled out during testing.
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START setting up excel test report workbook...");
-                    CreateFormattedExcelFile(excelFileReportPath, acdPath, name_mostRecentCommit, email_mostRecentCommit,
-                        jenkinsBuildNumber, jenkinsJobName, hash_mostRecentCommit, message_mostRecentCommit);
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE setting up excel test report workbook...\n---");
-
-                    // Check the test-reports folder and if over the specified file number limit, delete the oldest test files.
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START checking test-reports folder...");
-                    CleanTestReportsFolder(exampleTestReportsFolder_filePath, 5);
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE checking test-reports folder...\n---");
-                }
-
-                // Set up emulated controller (based on the specified ACD file path) if one does not yet exist. If not, continue.
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START setting up Factory Talk Logix Echo emulated controller...");
-                string commPath = SetUpEmulatedController_Sync(acdPath, echoChassisName, controllerName);
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE setting up Factory Talk Logix Echo emulated controller\n---");
-
-
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START preparing programmatically created ACD...");
-                // Create an empty program in the unscheduled folder of the new ACD application.
-                string emptyProgramContents_L5X = XMLfiles.GetEmptyProgramXMLContents(programName, routineName, controllerName, softwareRevision_string);
-                string emptyProgram_L5Xfilepath = tempFolder + "generated_programtarget.L5X";
-                File.WriteAllText(emptyProgram_L5Xfilepath, emptyProgramContents_L5X);
-                string xPath_programs = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
-                await project.PartialImportFromXmlFileAsync(xPath_programs, emptyProgram_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-                await project.SaveAsync();
-
-                // Add a task to the ACD application. The empty program is automatically grabbed.
-                string taskContents_L5X = XMLfiles.GetTaskXMLContents(taskName, programName, controllerName, softwareRevision_string);
-                string task_L5Xfilepath = tempFolder + "generated_tasktarget.L5X";
-                File.WriteAllText(task_L5Xfilepath, taskContents_L5X);
-                string xPath_tasks = @"Controller/Tasks";  // include program in task
-                await project.PartialImportFromXmlFileAsync(xPath_tasks, task_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-                await project.SaveAsync();
-
-                // Import the AOI.L5X being tested
-                string xPath_aoiDef = @"Controller/AddOnInstructionDefinitions";
-                await project.PartialImportFromXmlFileAsync(xPath_aoiDef, aoi_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-                await project.SaveAsync();
-
-                // Import FAULTRECORD UDT
-                string udtContents_L5X = XMLfiles.GetFaultRecordUDTXMLContents(controllerName);
-                string udt_L5Xfilepath = tempFolder + "generated_FAULTRECORD.L5X";
-                File.WriteAllText(udt_L5Xfilepath, udtContents_L5X);
-                string xPath_udtDef = @"Controller/DataTypes";
-                await project.PartialImportFromXmlFileAsync(xPath_udtDef, udt_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-                await project.SaveAsync();
-
-                // Import Fault Handler program -------------------------------------------------------------------------------------------------------------STILL IMPORTING TO UNSCHEDULED
-                string faultHandlerContents_L5X = XMLfiles.GetFaultHandlerProgramXMLContents(controllerName);
-                string faultHandler_L5Xfilepath = tempFolder + "generated_FaultHandlerProgram.L5X";
-                File.WriteAllText(faultHandler_L5Xfilepath, faultHandlerContents_L5X);
-                string xPath_faultHandlerDef = @"Controller/Programs";
-                await project.PartialImportFromXmlFileAsync(xPath_faultHandlerDef, faultHandler_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-
-                // Add fault handling rung to rung 0
-                string faultHandlingRungContents_L5X = XMLfiles.GetFaultHandlingRungXMLContents(controllerName);
-                string faultHandlingRung_L5Xfilepath = tempFolder + "generated_faulthandlingrung.L5X";
-                File.WriteAllText(faultHandlingRung_L5Xfilepath, faultHandlingRungContents_L5X);
-                string xPath_faultHandlingRung = @"Controller/Programs/Program[@Name='" + programName + @"']/Routines";
-                await project.PartialImportFromXmlFileAsync(xPath_faultHandlingRung, faultHandlingRung_L5Xfilepath, ImportCollisionOptions.OverwriteOnColl);
-
-                // Add custom AOI rung to rung 1
-                ConvertAOItoRUNGxml(convertedAOIrung_L5Xfilepath, routineName, programName, false);
-                string xPath_convertedAOIrung = @"Controller/Programs/Program[@Name='" + programName + @"']/Routines";
-                await project.PartialImportFromXmlFileAsync(xPath_convertedAOIrung, convertedAOIrung_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-                await project.SaveAsync();
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE preparing programmatically created ACD\n---");
-
-                // Change controller mode to program & verify.
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START changing controller to PROGRAM...");
-                ChangeControllerMode_Async(commPath, "PROGRAM", project).GetAwaiter().GetResult();
-                if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "PROGRAM")
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] SUCCESS changing controller to PROGRAM\n---");
-                else
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] FAILURE changing controller to PROGRAM\n---");
-
-                // Download project.
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START downloading ACD file...");
-                DownloadProject_Async(commPath, project).GetAwaiter().GetResult();
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] SUCCESS downloading ACD file\n---");
-
-                // Change controller mode to run.
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START Changing controller to RUN...");
-                ChangeControllerMode_Async(commPath, "RUN", project).GetAwaiter().GetResult();
-                if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "RUN")
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] SUCCESS changing controller to RUN\n---");
-                else
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] FAILURE changing controller to RUN\n---");
-
-                // ---------------------------------------------------------------------------------------------------------------------------
-
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START {aoiName} unit testing...");
-                int failureCondition = 0;
-                //Console.WriteLine("current fullTagPath: " + aoiTagScope);
-                ByteString udtoraoi_byteString = GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online);
-
-                CDTTParameters[] testParams = GetAOIParameters_FromL5X(convertedAOIrung_L5Xfilepath); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-                testParams = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true);
-                Print_AOIParameters(testParams, aoiName, false);
-
-                // Iterate through and verify each test case (each column in the input excel sheet).
-                int testCases = GetPopulatedColumnCount(currentExcelUnitTest_filePath, 18) - 1;
-                for (int columnNumber = 4; columnNumber < (testCases + 4); columnNumber++)
-                {
-                    string testBannerContents = $"test {columnNumber - 3}/{testCases}";
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START {testBannerContents}...");
-                    // Add tests
-                    Dictionary<string, string> currentColumn = GetExcelTestValues(currentExcelUnitTest_filePath, columnNumber);
                     foreach (var kvp in currentColumn)
                     {
-                        if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Output")
+                        //Console.WriteLine("second for loop kvp.key: " + kvp.Key);
+                        //Console.WriteLine("second for loop: " + GetCDTTParameter(kvp.Key, "Usage", testParams));
+                        if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Input")
                         {
-                            //SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project).GetAwaiter().GetResult();
-                            await SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project);
+                            CDTTParameters[] newTestParameters = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true);
+                            string outputValue = GetCDTTParameter(kvp.Key, "Value", newTestParameters);
+
+                            failureCondition += TEST_CompareForExpectedValue(kvp.Key, kvp.Value, outputValue);
                         }
+
                     }
-
-                    if (await ReadControllerMode_Async(commPath, project) != "FAULTED")
-                    {
-                        foreach (var kvp in currentColumn)
-                        {
-                            //Console.WriteLine("second for loop kvp.key: " + kvp.Key);
-                            //Console.WriteLine("second for loop: " + GetCDTTParameter(kvp.Key, "Usage", testParams));
-                            if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Input")
-                            {
-                                CDTTParameters[] newTestParameters = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true);
-                                string outputValue = GetCDTTParameter(kvp.Key, "Value", newTestParameters);
-
-                                failureCondition += TEST_CompareForExpectedValue(kvp.Key, kvp.Value, outputValue);
-                            }
-
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine(FormatLineType("FAILURE") + "Controller faulted.");
-                        failureCondition++;
-                        ChangeControllerMode_Async(commPath, "PROGRAM", project).GetAwaiter().GetResult();
-
-                        ChangeControllerMode_Async(commPath, "RUN", project).GetAwaiter().GetResult();
-                    }
-                }
-
-                if (failureCondition > 0)
-                {
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] {aoiName} Unit Test Result: FAIL\n---");
                 }
                 else
                 {
-                    Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] {aoiName} Unit Test Result: PASS\n---");
-                }
+                    Console.WriteLine(FormatLineType("FAILURE") + "Controller faulted.");
+                    failureCondition++;
+                    ChangeControllerMode_Async(commPath, "PROGRAM", project).GetAwaiter().GetResult();
 
-
-                // Based on the AOI Excel Worksheet for this AOI, keep or delete generated L5X files.
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START keeping/deleting programmatically generated L5X files...");
-                if (!keepL5Xs)
-                {
-                    File.Delete(emptyProgram_L5Xfilepath);
-                    Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{emptyProgram_L5Xfilepath}'");
-                    File.Delete(task_L5Xfilepath);
-                    Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{task_L5Xfilepath}'");
-                    File.Delete(convertedAOIrung_L5Xfilepath);
-                    Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{convertedAOIrung_L5Xfilepath}'");
+                    ChangeControllerMode_Async(commPath, "RUN", project).GetAwaiter().GetResult();
                 }
-                else
-                {
-                    Console.WriteLine($"{FormatLineType("STATUS")}Retained '{emptyProgram_L5Xfilepath}'");
-                    Console.WriteLine($"{FormatLineType("STATUS")}Retained '{task_L5Xfilepath}'");
-                    Console.WriteLine($"{FormatLineType("STATUS")}Retained '{convertedAOIrung_L5Xfilepath}'");
-                }
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE keeping/deleting programmatically generated L5X files\n---");
-
-                // Based on the AOI Excel Worksheet for this AOI, keep or delete the generated ACD file.
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START keeping/deleting programmatically generated ACD file...");
-                if (!keepACD)
-                {
-                    File.Delete(acdPath);
-                    Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{acdPath}'");
-                }
-                else
-                {
-                    Console.WriteLine($"{FormatLineType("STATUS")}Retained '{acdPath}'");
-                }
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE keeping/deleting programmatically generated ACD file\n---");
-
-                await project.GoOfflineAsync();
             }
+
+            if (failureCondition > 0)
+            {
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] {aoiName} Unit Test Result: FAIL\n---");
+            }
+            else
+            {
+                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] {aoiName} Unit Test Result: PASS\n---");
+            }
+
+
+            // Based on the AOI Excel Worksheet for this AOI, keep or delete generated L5X files.
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START keeping/deleting programmatically generated L5X files...");
+            if (!keepL5Xs)
+            {
+                File.Delete(emptyProgram_L5Xfilepath);
+                Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{emptyProgram_L5Xfilepath}'");
+                File.Delete(task_L5Xfilepath);
+                Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{task_L5Xfilepath}'");
+                File.Delete(convertedAOIrung_L5Xfilepath);
+                Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{convertedAOIrung_L5Xfilepath}'");
+            }
+            else
+            {
+                Console.WriteLine($"{FormatLineType("STATUS")}Retained '{emptyProgram_L5Xfilepath}'");
+                Console.WriteLine($"{FormatLineType("STATUS")}Retained '{task_L5Xfilepath}'");
+                Console.WriteLine($"{FormatLineType("STATUS")}Retained '{convertedAOIrung_L5Xfilepath}'");
+            }
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE keeping/deleting programmatically generated L5X files\n---");
+
+            // Based on the AOI Excel Worksheet for this AOI, keep or delete the generated ACD file.
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START keeping/deleting programmatically generated ACD file...");
+            if (!keepACD)
+            {
+                File.Delete(acdPath);
+                Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{acdPath}'");
+            }
+            else
+            {
+                Console.WriteLine($"{FormatLineType("STATUS")}Retained '{acdPath}'");
+            }
+            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE keeping/deleting programmatically generated ACD file\n---");
+
+            await project.GoOfflineAsync();
+
 
 
         }
@@ -2117,6 +2101,33 @@ namespace UnitTesting
             return returnString.PadLeft(11, ' ');
         }
 
+        public static void Message(string messageType, string messageContents)
+        {
+            messageType = messageType.ToUpper().Trim();
+
+            if ((messageType == "ERROR") || (messageType == "FAILURE"))
+            {
+                messageType = messageType.PadLeft(9, ' ') + ": ";
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write(messageType);
+                Console.ForegroundColor = ConsoleColor.Gray;
+            }
+            else if (messageType == "SUCCESS")
+            {
+                messageType = messageType.PadLeft(9, ' ') + ": ";
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write(messageType);
+                Console.ForegroundColor = ConsoleColor.Gray;
+            }
+            else
+            {
+                messageType = messageType.PadLeft(9, ' ') + ": ";
+                Console.Write(messageType);
+            }
+
+            Console.WriteLine(messageContents);
+        }
+
         /// <summary>
         /// A test to compare the expected and actual values of a tag.
         /// </summary>
@@ -2132,12 +2143,15 @@ namespace UnitTesting
         {
             if (expectedValue != actualValue)
             {
-                Console.Write(WrapText($"{FormatLineType("FAILURE")}{tagName} expected value ({expectedValue}) & actual value ({actualValue}) NOT equal.", 9, 125));
+                //Console.Write(WrapText($"{FormatLineType("FAILURE")}{tagName} expected value ({expectedValue}) & actual value ({actualValue}) NOT equal.", 9, 125));
+                Message("FAILURE", $"{tagName} expected value ({expectedValue}) & actual value ({actualValue}) NOT equal.");
+
                 return 1;
             }
             else
             {
-                Console.Write(WrapText($"{FormatLineType("SUCCESS")}{tagName} expected value ({expectedValue}) & actual value ({actualValue}) EQUAL.", 9, 125));
+                //Console.Write(WrapText($"{FormatLineType("SUCCESS")}{tagName} expected value ({expectedValue}) & actual value ({actualValue}) EQUAL.", 9, 125));
+                Message("SUCCESS", $"{tagName} expected value ({expectedValue}) & actual value ({actualValue}) EQUAL.");
                 return 0;
             }
         }
