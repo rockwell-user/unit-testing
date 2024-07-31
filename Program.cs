@@ -104,7 +104,7 @@ namespace UnitTesting
             string aoiTagScope = $"Controller/Tags/Tag[@Name='AOI_{aoiName}']";
 
             // Create a new ACD project file.
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START creating & opening new ACD unit test application file...");
+            ConsoleMessage("START creating & opening new ACD unit test application file...", "NEWSECTION", false);
             string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\",
                 DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiName + "_UnitTest.ACD"); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
             //string acdPath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\20240716141455_AOIunittest.ACD";
@@ -113,8 +113,7 @@ namespace UnitTesting
             string processorTypeName = "1756-L85E";
             string controllerName2 = "UnitTest_Controller";
             LogixProject project = await CreateNewProjectAsync(acdPath, softwareRevision_uint, processorTypeName, controllerName2);
-            Console.WriteLine($"{FormatLineType("STATUS")}File created at '{acdPath}'");
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE creating & opening new ACD unit test application file\n---");
+            ConsoleMessage($"File created at '{acdPath}'.", "STATUS");
 
             //// =========================================================================
             //// LOGGER INFO (UNCOMMENT IF TROUBLESHOOTING)
@@ -127,24 +126,23 @@ namespace UnitTesting
             if (createNewExcelTestReport)
             {
                 // Create an excel test report to be filled out during testing.
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START setting up excel test report workbook...");
+                ConsoleMessage("START setting up excel test report workbook...", "NEWSECTION");
                 CreateFormattedExcelFile(outputExcel_UnitTestResults_filepath, acdPath, name_mostRecentCommit, email_mostRecentCommit,
                     jenkinsBuildNumber, jenkinsJobName, hash_mostRecentCommit, message_mostRecentCommit);
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE setting up excel test report workbook...\n---");
 
                 // Check the test-reports folder and if over the specified file number limit, delete the oldest test files.
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START checking test-reports folder...");
+                ConsoleMessage("START checking test-reports folder...", "NEWSECTION");
                 CleanTestReportsFolder(exampleTestReportsFolder_filePath, 5);
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE checking test-reports folder...\n---");
             }
 
             // Set up emulated controller (based on the specified ACD file path) if one does not yet exist. If not, continue.
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START setting up Factory Talk Logix Echo emulated controller...");
+            ConsoleMessage("START setting up Factory Talk Logix Echo emulated controller...", "NEWSECTION");
             string commPath = SetUpEmulatedController_Sync(acdPath, echoChassisName, controllerName);
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE setting up Factory Talk Logix Echo emulated controller\n---");
 
 
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START preparing programmatically created ACD...");
+
+
+            ConsoleMessage("START preparing programmatically created ACD...", "NEWSECTION");
             // Create an empty program in the unscheduled folder of the new ACD application.
             string emptyProgramContents_L5X = XMLfiles.GetEmptyProgramXMLContents(programName, routineName, controllerName, softwareRevision_string);
             string emptyProgram_L5Xfilepath = tempFolder + "generated_programtarget.L5X";
@@ -189,36 +187,37 @@ namespace UnitTesting
             await project.PartialImportFromXmlFileAsync(xPath_faultHandlingRung, faultHandlingRung_L5Xfilepath, ImportCollisionOptions.OverwriteOnColl);
 
             // Add custom AOI rung to rung 1
-            ConvertAOItoRUNGxml(convertedAOIrung_L5Xfilepath, routineName, programName, false);
+            ConvertAOItoRUNGxml(convertedAOIrung_L5Xfilepath, routineName, programName, true);
             string xPath_convertedAOIrung = @"Controller/Programs/Program[@Name='" + programName + @"']/Routines";
             await project.PartialImportFromXmlFileAsync(xPath_convertedAOIrung, convertedAOIrung_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
             await project.SaveAsync();
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE preparing programmatically created ACD\n---");
+
+
 
             // Change controller mode to program & verify.
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START changing controller to PROGRAM...");
+            ConsoleMessage("START changing controller to PROGRAM...", "NEWSECTION");
             ChangeControllerMode_Async(commPath, "PROGRAM", project).GetAwaiter().GetResult();
             if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "PROGRAM")
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] SUCCESS changing controller to PROGRAM\n---");
+                ConsoleMessage("SUCCESS changing controller to PROGRAM.", "STATUS", false);
             else
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] FAILURE changing controller to PROGRAM\n---");
+                ConsoleMessage("FAILURE changing controller to PROGRAM.", "STATUS", false);
 
             // Download project.
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START downloading ACD file...");
+            ConsoleMessage("START downloading ACD file...", "NEWSECTION");
             DownloadProject_Async(commPath, project).GetAwaiter().GetResult();
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] SUCCESS downloading ACD file\n---");
+            ConsoleMessage("SUCCESS downloading ACD file.", "STATUS", false);
 
             // Change controller mode to run.
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START Changing controller to RUN...");
+            ConsoleMessage("START changing controller to RUN...", "NEWSECTION");
             ChangeControllerMode_Async(commPath, "RUN", project).GetAwaiter().GetResult();
             if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "RUN")
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] SUCCESS changing controller to RUN\n---");
+                ConsoleMessage("SUCCESS changing controller to RUN.", "STATUS", false);
             else
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] FAILURE changing controller to RUN\n---");
+                ConsoleMessage("FAILURE changing controller to RUN.", "STATUS", false);
 
             // ---------------------------------------------------------------------------------------------------------------------------
 
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START {aoiName} unit testing...");
+            ConsoleMessage($"START {aoiName} unit testing...", "NEWSECTION");
             int failureCondition = 0;
             //Console.WriteLine("current fullTagPath: " + aoiTagScope);
             ByteString udtoraoi_byteString = GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online);
@@ -232,7 +231,8 @@ namespace UnitTesting
             for (int columnNumber = 4; columnNumber < (testCases + 4); columnNumber++)
             {
                 string testBannerContents = $"test {columnNumber - 3}/{testCases}";
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START {testBannerContents}...");
+                ConsoleMessage($"START {testBannerContents}...", "NEWSECTION", false);
+
                 // Add tests
                 Dictionary<string, string> currentColumn = GetExcelTestValues(inputExcel_UnitTestSetup_filePath, columnNumber);
                 foreach (var kvp in currentColumn)
@@ -262,7 +262,7 @@ namespace UnitTesting
                 }
                 else
                 {
-                    Console.WriteLine(FormatLineType("FAILURE") + "Controller faulted.");
+                    ConsoleMessage("Controller faulted.", "ERROR");
                     failureCondition++;
                     ChangeControllerMode_Async(commPath, "PROGRAM", project).GetAwaiter().GetResult();
 
@@ -272,45 +272,47 @@ namespace UnitTesting
 
             if (failureCondition > 0)
             {
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] {aoiName} Unit Test Result: FAIL\n---");
+                Console.ForegroundColor = ConsoleColor.Red;
+                ConsoleMessage($"{aoiName} Unit Test Result: FAILURE", "NEWSECTION", false);
+                Console.ForegroundColor = ConsoleColor.Gray;
             }
             else
             {
-                Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] {aoiName} Unit Test Result: PASS\n---");
+                Console.ForegroundColor = ConsoleColor.Green;
+                ConsoleMessage($"{aoiName} Unit Test Result: PASS", "NEWSECTION", false);
+                Console.ForegroundColor = ConsoleColor.Gray;
             }
 
 
             // Based on the AOI Excel Worksheet for this AOI, keep or delete generated L5X files.
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START keeping/deleting programmatically generated L5X files...");
+            ConsoleMessage("START keeping/deleting programmatically generated L5X files...", "NEWSECTION");
             if (!keepL5Xs)
             {
                 File.Delete(emptyProgram_L5Xfilepath);
-                Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{emptyProgram_L5Xfilepath}'");
                 File.Delete(task_L5Xfilepath);
-                Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{task_L5Xfilepath}'");
                 File.Delete(convertedAOIrung_L5Xfilepath);
-                Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{convertedAOIrung_L5Xfilepath}'");
+                ConsoleMessage($"Deleted '{emptyProgram_L5Xfilepath}'.", "STATUS");
+                ConsoleMessage($"Deleted '{task_L5Xfilepath}'.", "STATUS");
+                ConsoleMessage($"Deleted '{convertedAOIrung_L5Xfilepath}'.", "STATUS");
             }
             else
             {
-                Console.WriteLine($"{FormatLineType("STATUS")}Retained '{emptyProgram_L5Xfilepath}'");
-                Console.WriteLine($"{FormatLineType("STATUS")}Retained '{task_L5Xfilepath}'");
-                Console.WriteLine($"{FormatLineType("STATUS")}Retained '{convertedAOIrung_L5Xfilepath}'");
+                ConsoleMessage($"Retained '{emptyProgram_L5Xfilepath}'.", "STATUS");
+                ConsoleMessage($"Retained '{task_L5Xfilepath}'.", "STATUS");
+                ConsoleMessage($"Retained '{convertedAOIrung_L5Xfilepath}'.", "STATUS");
             }
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE keeping/deleting programmatically generated L5X files\n---");
 
             // Based on the AOI Excel Worksheet for this AOI, keep or delete the generated ACD file.
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] START keeping/deleting programmatically generated ACD file...");
+            ConsoleMessage("START keeping/deleting programmatically generated ACD file...", "NEWSECTION");
             if (!keepACD)
             {
                 File.Delete(acdPath);
-                Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{acdPath}'");
+                ConsoleMessage($"Deleted '{acdPath}'.", "STATUS");
             }
             else
             {
-                Console.WriteLine($"{FormatLineType("STATUS")}Retained '{acdPath}'");
+                ConsoleMessage($"Retained '{acdPath}'.", "STATUS");
             }
-            Console.WriteLine($"[{DateTime.Now.ToString("HH:mm:ss")}] DONE keeping/deleting programmatically generated ACD file\n---");
 
             await project.GoOfflineAsync();
 
@@ -483,7 +485,7 @@ namespace UnitTesting
             // Check if the source file exists
             if (!File.Exists(sourceFilePath) && (printOut))
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}Source file '{sourceFilePath}' does not exist.");
+                ConsoleMessage($"Source file '{sourceFilePath}' does not exist.", "ERROR");
             }
 
             // Get the directory and file name from the source file path
@@ -520,12 +522,12 @@ namespace UnitTesting
                 }
                 else if (printOut)
                 {
-                    Console.WriteLine($"{FormatLineType("ERROR")}Attribute '{attributeName}' not found in element '{complexElementName}'.");
+                    ConsoleMessage($"Attribute '{attributeName}' not found in element '{complexElementName}'.", "ERROR");
                 }
             }
             else if (printOut)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}The complex element '{complexElementName}' was not found in the XML file.");
+                ConsoleMessage($"The complex element '{complexElementName}' was not found in the XML file.", "ERROR");
             }
 
             return null; // Return null if attribute value is not found
@@ -542,7 +544,7 @@ namespace UnitTesting
 
             if ((element == null) && printOut)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}The element '{elementName}' was not found in the XML file.");
+                ConsoleMessage($"The element '{elementName}' was not found in the XML file.", "ERROR");
             }
 
             // Create a dictionary to hold the attribute names and values
@@ -572,7 +574,7 @@ namespace UnitTesting
 
                         if (printOut)
                         {
-                            Console.WriteLine($"{FormatLineType("SUCCESS")}Attribute '{attributeToDelete}' has been removed from the element '{complexElementName}'.");
+                            ConsoleMessage($"Attribute '{attributeToDelete}' has been removed from the element '{complexElementName}'.", "STATUS");
                         }
 
                         // Save the changes back to the file
@@ -580,17 +582,17 @@ namespace UnitTesting
                     }
                     else if (printOut)
                     {
-                        Console.WriteLine($"{FormatLineType("ERROR")}Attribute '{attributeToDelete}' not found in element '{complexElementName}'.");
+                        ConsoleMessage($"Attribute '{attributeToDelete}' not found in element '{complexElementName}'.", "ERROR");
                     }
                 }
                 else if (printOut)
                 {
-                    Console.WriteLine($"{FormatLineType("ERROR")}The complex element '{complexElementName}' was not found in the XML file.");
+                    ConsoleMessage($"The complex element '{complexElementName}' was not found in the XML file.", "ERROR");
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}{e.Message}");
+                ConsoleMessage(e.Message, "ERROR");
             }
         }
 
@@ -613,7 +615,7 @@ namespace UnitTesting
 
                 if (printOut)
                 {
-                    Console.WriteLine($"{FormatLineType("SUCCESS")}Attribute '{attributeToDelete}' has been removed from the root complex element '{complexElementName}'.");
+                    ConsoleMessage($"Attribute '{attributeToDelete}' has been removed from the root complex element '{complexElementName}'.", "STATUS");
                 }
 
                 // Save the changes back to the file
@@ -621,7 +623,7 @@ namespace UnitTesting
             }
             else if (printOut)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}Attribute '{attributeToDelete}' not found in the root complex element '{complexElementName}'.");
+                ConsoleMessage($"Attribute '{attributeToDelete}' not found in the root complex element '{complexElementName}'.", "ERROR");
             }
         }
 
@@ -641,7 +643,7 @@ namespace UnitTesting
 
                 if (printOut)
                 {
-                    Console.WriteLine($"{FormatLineType("SUCCESS")}Attribute '{attributeName}' with value '{attributeValue}' has been added to the element '{complexElementName}'.");
+                    ConsoleMessage($"Attribute '{attributeName}' with value '{attributeValue}' has been added to the element '{complexElementName}'.", "STATUS");
                 }
 
                 // Save the changes back to the file
@@ -649,7 +651,7 @@ namespace UnitTesting
             }
             else if (printOut)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}The complex element '{complexElementName}' was not found in the XML file.");
+                ConsoleMessage($"The complex element '{complexElementName}' was not found in the XML file.", "ERROR");
             }
         }
 
@@ -670,7 +672,7 @@ namespace UnitTesting
 
                     if (printOut)
                     {
-                        Console.WriteLine($"{FormatLineType("SUCCESS")}Attribute '{attributeName}' with value '{attributeValue}' has been added to the element '{complexElementName}'.");
+                        ConsoleMessage($"Attribute '{attributeName}' with value '{attributeValue}' has been added to the element '{complexElementName}'.", "STATUS");
                     }
 
                     // Save the changes back to the file
@@ -678,12 +680,12 @@ namespace UnitTesting
                 }
                 else if (printOut)
                 {
-                    Console.WriteLine($"{FormatLineType("ERROR")}The complex element '{complexElementName}' was not found in the XML file.");
+                    ConsoleMessage($"The complex element '{complexElementName}' was not found in the XML file.", "ERROR");
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}{e.Message}");
+                ConsoleMessage(e.Message, "ERROR");
             }
         }
 
@@ -705,7 +707,7 @@ namespace UnitTesting
 
                     if (printOut)
                     {
-                        Console.WriteLine($"{FormatLineType("SUCCESS")}Element '{newElementName}' has been added to the complex element '{complexElementName}'.");
+                        ConsoleMessage($"Element '{newElementName}' has been added to the complex element '{complexElementName}'.", "STATUS");
                     }
 
                     // Save the changes back to the file
@@ -713,12 +715,12 @@ namespace UnitTesting
                 }
                 else if (printOut)
                 {
-                    Console.WriteLine($"{FormatLineType("ERROR")}The complex element '{complexElementName}' was not found in the XML file.");
+                    ConsoleMessage($"The complex element '{complexElementName}' was not found in the XML file.", "ERROR");
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}{e.Message}");
+                ConsoleMessage(e.Message, "ERROR");
             }
         }
 
@@ -746,7 +748,7 @@ namespace UnitTesting
 
                     if (printOut)
                     {
-                        Console.WriteLine($"{FormatLineType("SUCCESS")}A new CDATA section has been created and added to the element '{complexElementName}'.");
+                        ConsoleMessage($"A new CDATA section has been created and added to the element '{complexElementName}'.", "STATUS");
                     }
 
                     // Save the changes back to the file.
@@ -754,12 +756,12 @@ namespace UnitTesting
                 }
                 else if (printOut)
                 {
-                    Console.WriteLine($"{FormatLineType("ERROR")}The complex element '{complexElementName}' was not found in the XML file.");
+                    ConsoleMessage($"The complex element '{complexElementName}' was not found in the XML file.", "ERROR");
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}{e.Message}");
+                ConsoleMessage(e.Message, "ERROR");
             }
         }
 
@@ -806,14 +808,14 @@ namespace UnitTesting
 
                 if (printOut)
                 {
-                    Console.WriteLine($"{FormatLineType("CDATA")}{returnString}");
+                    ConsoleMessage($"CDATA contents: {returnString}", "STATUS");
                 }
 
                 return returnString;
             }
             catch (Exception e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}{e.Message}");
+                ConsoleMessage(e.Message, "ERROR");
                 return e.Message;
             }
         }
@@ -856,14 +858,14 @@ namespace UnitTesting
 
                 if (printOut)
                 {
-                    Console.WriteLine($"{FormatLineType("CDATA")}{returnString}");
+                    ConsoleMessage($"CDATA contents: {returnString}", "STATUS");
                 }
 
                 return returnString;
             }
             catch (Exception e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}{e.Message}");
+                ConsoleMessage(e.Message, "ERROR");
                 return e.Message;
             }
         }
@@ -899,7 +901,7 @@ namespace UnitTesting
             }
             catch (Exception e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}{e.Message}");
+                ConsoleMessage(e.Message, "ERROR");
             }
 
             return return_attributeList;
@@ -953,12 +955,12 @@ namespace UnitTesting
                 }
                 if (printOut)
                 {
-                    Console.WriteLine($"{FormatLineType("SUCCESS")}Complex elements added.");
+                    ConsoleMessage("Complex elements added.", "STATUS");
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}{e.Message}");
+                ConsoleMessage(e.Message, "ERROR");
             }
         }
         #endregion
@@ -1032,7 +1034,7 @@ namespace UnitTesting
         private static void Print_AOIParameters(CDTTParameters[] dataPointsArray, string aoiName, bool printPosition)
         {
             int arraySize = dataPointsArray.Length;
-            Console.WriteLine($"{FormatLineType("STATUS")}Print {aoiName} parameters");
+            ConsoleMessage($"Print {aoiName} parameters.", "STATUS");
 
             for (int i = 0; i < arraySize; i++)
             {
@@ -1129,6 +1131,7 @@ namespace UnitTesting
             StringBuilder newSentence = new();
             string line = "";
             int numberOfNewLines = 0;
+
             foreach (string word in words)
             {
                 word.Trim();
@@ -1171,7 +1174,7 @@ namespace UnitTesting
         /// <param name="keepCount">The number of files in a folder to be kept.</param>
         private static void CleanTestReportsFolder(string folderPath, int keepCount)
         {
-            Console.WriteLine($"{FormatLineType("STATUS")}'{folderPath}' set to retain {keepCount} test files");
+            ConsoleMessage($"'{folderPath}' set to retain {keepCount} test files.", "STATUS");
             string[] all_files = Directory.GetFiles(folderPath);
             var orderedFiles = all_files.Select(f => new FileInfo(f)).OrderBy(f => f.CreationTime).ToList();
             if (orderedFiles.Count > keepCount)
@@ -1180,11 +1183,13 @@ namespace UnitTesting
                 {
                     FileInfo deleteThisFile = orderedFiles[i];
                     deleteThisFile.Delete();
-                    Console.WriteLine($"{FormatLineType("STATUS")}Deleted '{deleteThisFile.FullName}'");
+                    ConsoleMessage($"Deleted '{deleteThisFile.FullName}'.", "STATUS");
                 }
             }
             else
-                Console.WriteLine($"{FormatLineType("STATUS")}No files needed to be deleted (currently {orderedFiles.Count} test files).");
+            {
+                ConsoleMessage($"No files needed to be deleted (currently {orderedFiles.Count} test files).", "STATUS");
+            }
         }
         #endregion
 
@@ -1257,6 +1262,8 @@ namespace UnitTesting
             TestSummarySheet.Cells["C9"].Style.ShrinkToFit = true;
 
             excelPackage.SaveAs(new System.IO.FileInfo(excelFilePath));
+
+            ConsoleMessage($"File created at '{excelFilePath}'.", "STATUS");
         }
 
         /// <summary>
@@ -1461,11 +1468,13 @@ namespace UnitTesting
                     return_array[2] = (tagValue_offline == "") ? "<empty_string>" : $"{tagValue_offline}";
                 }
                 else
-                    Console.WriteLine(WrapText($"{FormatLineType("ERROR")}Data type ({type}) not supported.", 9, 125));
+                {
+                    ConsoleMessage($"Data type '{type}' not supported.", "ERROR");
+                }
             }
             catch (LogixSdkException e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}Could not get tag ({tagName}).");
+                ConsoleMessage($"Could not get tag '{tagName}'.", "ERROR");
                 Console.WriteLine(e.Message);
             }
 
@@ -1473,7 +1482,7 @@ namespace UnitTesting
             {
                 string online_message = $"online value: {return_array[1]}";
                 string offline_message = $"offline value: {return_array[2]}";
-                Console.WriteLine(FormatLineType("SUCCESS") + tagName.PadRight(40, ' ') + online_message.PadRight(35, ' ') + offline_message.PadRight(35, ' '));
+                ConsoleMessage($"{tagName.PadRight(40, ' ')}{online_message.PadRight(35, ' ')}{offline_message.PadRight(35, ' ')}", "SUCCESS");
             }
 
             return return_array;
@@ -1545,7 +1554,7 @@ namespace UnitTesting
                     else if (type == DataType.STRING)
                         await project.SetTagValueSTRINGAsync(tagPath, OperationMode.Online, newTagValue);
                     else
-                        Console.WriteLine($"{FormatLineType("ERROR")}Data type ({type}) not supported.");
+                        ConsoleMessage($"Data type '{type}' not supported.", "ERROR");
                     old_tag_value = old_tag_values[1];
                 }
                 else if (mode == OperationMode.Offline)
@@ -1565,13 +1574,13 @@ namespace UnitTesting
                     else if (type == DataType.STRING)
                         await project.SetTagValueSTRINGAsync(tagPath, OperationMode.Offline, newTagValue);
                     else
-                        Console.WriteLine($"{FormatLineType("ERROR")}Data type ({type}) not supported.");
+                        ConsoleMessage($"Data type '{type}' not supported.", "ERROR");
                     old_tag_value = old_tag_values[2];
                 }
             }
             catch (LogixSdkException e)
             {
-                Console.WriteLine("Unable to set tag value.");
+                ConsoleMessage("Unable to set tag value.", "ERROR");
                 Console.WriteLine(e.Message);
             }
 
@@ -1581,7 +1590,7 @@ namespace UnitTesting
             }
             catch (LogixSdkException e)
             {
-                Console.WriteLine("Unable to save project");
+                ConsoleMessage("Unable to save project", "ERROR");
                 Console.WriteLine(e.Message);
             }
 
@@ -1590,7 +1599,9 @@ namespace UnitTesting
                 string new_tag_value_string = Convert.ToString(newTagValue);
                 if ((new_tag_value_string == "1") && (type == DataType.BOOL)) { new_tag_value_string = "True"; }
                 if ((new_tag_value_string == "0") && (type == DataType.BOOL)) { new_tag_value_string = "False"; }
-                Console.WriteLine(FormatLineType("SUCCESS") + mode + " " + old_tag_values[0].PadRight(40, ' ') + old_tag_value.PadLeft(20, ' ') + "  -->  " + new_tag_value_string);
+
+                string outputMessage = $"{old_tag_values[0].PadRight(40, ' ')}{old_tag_value.PadLeft(20, ' ')} --> {new_tag_value_string}";
+                ConsoleMessage(outputMessage, "SUCCESS");
             }
         }
 
@@ -1632,12 +1643,13 @@ namespace UnitTesting
         private static async Task<ByteString> GetAOIbytestring_Async(string fullTagPath, LogixProject project, OperationMode online_or_offline)
         {
             ByteString returnByteStringArray = ByteString.Empty;
+
             if (online_or_offline == OperationMode.Online)
                 returnByteStringArray = await project.GetTagValueAsync(fullTagPath, OperationMode.Online, DataType.BYTE_ARRAY);
             else if (online_or_offline == OperationMode.Offline)
                 returnByteStringArray = await project.GetTagValueAsync(fullTagPath, OperationMode.Offline, DataType.BYTE_ARRAY);
             else
-                Console.WriteLine($"{FormatLineType("ERROR")}The input ({online_or_offline}) is not a valid selection. Input either OperationMode.Online or OperationMode.Offline");
+                ConsoleMessage($"The input '{online_or_offline}' is not a valid selection. Input either 'OperationMode.Online' or 'OperationMode.Offline'.", "ERROR");
 
             return returnByteStringArray;
         }
@@ -1760,14 +1772,14 @@ namespace UnitTesting
                     }
                     else
                     {
-                        Console.WriteLine($"{FormatLineType("ERROR")}Data type ({dataType}) not supported.");
+                        ConsoleMessage($"Data type '{dataType}' not supported.", "ERROR");
                     }
                 }
             }
 
             await project.SetTagValueAsync(aoiTagPath, mode, new_byteArray, DataType.BYTE_ARRAY);
             string setParamIntro = $"Change {parameterName} value:".PadRight(40, ' ');
-            Console.WriteLine($"{FormatLineType("STATUS")}{setParamIntro} {oldParameterValue,20} -> {newParameterValue,-20}");
+            ConsoleMessage($"{setParamIntro} {oldParameterValue,20} -> {newParameterValue,-20}", "STATUS");
         }
 
         private static DataType GetDataType(string dataType)
@@ -1794,7 +1806,7 @@ namespace UnitTesting
                     type = DataType.LINT;
                     break;
                 default:
-                    Console.WriteLine($"{FormatLineType("ERROR")} Data type ({dataType}) not supported.");
+                    ConsoleMessage($"Data type '{dataType}' not supported.", "ERROR");
                     throw new ArgumentException();
             }
             return type;
@@ -1947,13 +1959,21 @@ namespace UnitTesting
 
             var requestedControllerMode = default(LogixProject.RequestedControllerMode);
             if (mode == "PROGRAM")
+            {
                 requestedControllerMode = LogixProject.RequestedControllerMode.Program;
+            }
             else if (mode == "RUN")
+            {
                 requestedControllerMode = LogixProject.RequestedControllerMode.Run;
+            }
             else if (mode == "TEST")
+            {
                 requestedControllerMode = LogixProject.RequestedControllerMode.Test;
+            }
             else
-                Console.WriteLine($"{FormatLineType("ERROR")}{mode} is not supported.");
+            {
+                ConsoleMessage($"Mode '{mode}' is not supported.", "ERROR");
+            }
 
             try
             {
@@ -1961,7 +1981,7 @@ namespace UnitTesting
             }
             catch (LogixSdkException e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}Unable to set commpath to {commPath}");
+                ConsoleMessage($"Unable to set communication path to '{commPath}'.", "ERROR");
                 Console.WriteLine(e.Message);
             }
 
@@ -1971,7 +1991,7 @@ namespace UnitTesting
             }
             catch (LogixSdkException e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}Unable to set mode. Requested mode was {mode}");
+                ConsoleMessage($"Unable to set mode. Requested mode was '{mode}'.", "ERROR");
                 Console.WriteLine(e.Message);
             }
         }
@@ -1990,7 +2010,7 @@ namespace UnitTesting
             }
             catch (LogixSdkException e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}Unable to set commpath to {commPath}");
+                ConsoleMessage($"Unable to set communication path to '{commPath}'.", "ERROR");
                 Console.WriteLine(e.Message);
             }
 
@@ -1999,12 +2019,12 @@ namespace UnitTesting
                 LogixProject.ControllerMode controllerMode = await project.ReadControllerModeAsync();
                 if (controllerMode != LogixProject.ControllerMode.Program)
                 {
-                    Console.WriteLine($"{FormatLineType("ERROR")}Controller mode is {controllerMode}. Downloading is possible only if the controller is in 'Program' mode");
+                    ConsoleMessage($"Controller mode is {controllerMode}. Downloading is possible only if the controller is in 'Program' mode.", "ERROR");
                 }
             }
             catch (LogixSdkException e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}Unable to read ControllerMode");
+                ConsoleMessage("Unable to read ControllerMode.", "ERROR");
                 Console.WriteLine(e.Message);
             }
 
@@ -2014,7 +2034,7 @@ namespace UnitTesting
             }
             catch (LogixSdkException e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}Unable to download");
+                ConsoleMessage("Unable to download.", "ERROR");
                 Console.WriteLine(e.Message);
             }
 
@@ -2028,7 +2048,7 @@ namespace UnitTesting
             }
             catch (LogixSdkException e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}Unable to save project");
+                ConsoleMessage("Unable to save project.", "ERROR");
                 Console.WriteLine(e.Message);
             }
         }
@@ -2048,7 +2068,7 @@ namespace UnitTesting
             }
             catch (LogixSdkException e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}Unable to set commpath to {commPath}");
+                ConsoleMessage($"Unable to set commpath to '{commPath}'.", "ERROR");
                 Console.WriteLine(e.Message);
             }
 
@@ -2066,12 +2086,12 @@ namespace UnitTesting
                     case LogixProject.ControllerMode.Test:
                         return "TEST";
                     default:
-                        throw new ArgumentOutOfRangeException("Controller mode is unrecognized");
+                        throw new ArgumentOutOfRangeException("Controller mode is unrecognized.");
                 }
             }
             catch (LogixSdkException e)
             {
-                Console.WriteLine($"{FormatLineType("ERROR")}Unable to read controller mode");
+                ConsoleMessage("Unable to read controller mode.", "ERROR");
                 Console.WriteLine(e.Message);
             }
 
@@ -2089,42 +2109,62 @@ namespace UnitTesting
             }
             else
             {
-                Console.WriteLine($"{FormatLineType("")}Conversion failed. The input string is not a valid double.");
+                ConsoleMessage("Conversion failed. The input string is not a valid double.", "ERROR");
             }
 
             return result;
         }
 
-        public static string FormatLineType(string formatType)
+        /// <summary>
+        /// Standardized method to print messages of varying categories to the console.
+        /// </summary>
+        /// <param name="messageContents">The contents of the message to be written to the console.</param>
+        /// <param name="messageCategory">The name of the message category.</param>
+        /// <param name="newLineForSection">
+        /// A boolean input that determines whether to write the characters '---' to the console.<br/>
+        /// (Note: only applicable if messageCateogry = "NEWSECTION")
+        /// </param>
+        public static void ConsoleMessage(string messageContents, string messageCategory = "", bool newLineForSection = true)
         {
-            string returnString = formatType + ": ";
-            return returnString.PadLeft(11, ' ');
-        }
+            messageCategory = messageCategory.ToUpper().Trim();
 
-        public static void Message(string messageType, string messageContents)
-        {
-            messageType = messageType.ToUpper().Trim();
-
-            if ((messageType == "ERROR") || (messageType == "FAILURE"))
+            if ((messageCategory == "ERROR") || (messageCategory == "FAILURE") || (messageCategory == "FAIL"))
             {
-                messageType = messageType.PadLeft(9, ' ') + ": ";
+                messageCategory = messageCategory.PadLeft(9, ' ') + ": ";
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write(messageType);
+                Console.Write(messageCategory);
                 Console.ForegroundColor = ConsoleColor.Gray;
             }
-            else if (messageType == "SUCCESS")
+            else if ((messageCategory == "SUCCESS") || (messageCategory == "PASS"))
             {
-                messageType = messageType.PadLeft(9, ' ') + ": ";
+                messageCategory = messageCategory.PadLeft(9, ' ') + ": ";
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write(messageType);
+                Console.Write(messageCategory);
                 Console.ForegroundColor = ConsoleColor.Gray;
+            }
+            else if (messageCategory == "STATUS")
+            {
+                messageCategory = messageCategory.PadLeft(9, ' ') + ": ";
+                Console.Write(messageCategory);
+            }
+            else if (messageCategory == "NEWSECTION")
+            {
+                if (newLineForSection)
+                {
+                    Console.Write($"---\n[{DateTime.Now.ToString("HH:mm:ss")}] ");
+                }
+                else
+                {
+                    Console.Write($"[{DateTime.Now.ToString("HH:mm:ss")}] ");
+                }
             }
             else
             {
-                messageType = messageType.PadLeft(9, ' ') + ": ";
-                Console.Write(messageType);
+                messageCategory = messageCategory.PadLeft(9, ' ');
+                Console.Write(messageCategory);
             }
 
+            messageContents = WrapText(messageContents, 11, 80);
             Console.WriteLine(messageContents);
         }
 
@@ -2143,15 +2183,13 @@ namespace UnitTesting
         {
             if (expectedValue != actualValue)
             {
-                //Console.Write(WrapText($"{FormatLineType("FAILURE")}{tagName} expected value ({expectedValue}) & actual value ({actualValue}) NOT equal.", 9, 125));
-                Message("FAILURE", $"{tagName} expected value ({expectedValue}) & actual value ({actualValue}) NOT equal.");
+                ConsoleMessage($"{tagName} expected value '{expectedValue}' & actual value '{actualValue}' NOT equal.", "FAIL");
 
                 return 1;
             }
             else
             {
-                //Console.Write(WrapText($"{FormatLineType("SUCCESS")}{tagName} expected value ({expectedValue}) & actual value ({actualValue}) EQUAL.", 9, 125));
-                Message("SUCCESS", $"{tagName} expected value ({expectedValue}) & actual value ({actualValue}) EQUAL.");
+                ConsoleMessage($"{tagName} expected value '{expectedValue}' & actual value '{actualValue}' EQUAL.", "PASS");
                 return 0;
             }
         }
@@ -2163,11 +2201,11 @@ namespace UnitTesting
             {
                 // Create the folder if it doesn't exist
                 Directory.CreateDirectory(folderPath);
-                Console.WriteLine($"Folder created at: {folderPath}");
+                ConsoleMessage($"Folder created at '{folderPath}'.", "STATUS");
             }
             else
             {
-                Console.WriteLine($"Folder already exists at: {folderPath}");
+                ConsoleMessage($"Folder already exists at '{folderPath}'.", "STATUS");
             }
         }
     }
