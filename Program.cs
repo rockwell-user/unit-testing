@@ -68,7 +68,20 @@ namespace UnitTesting
             bool keepL5Xs;
             string aoiFileName = "";
 
+            string longMessageTest = "Hello! This beings the long test: ksdanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjsdlfjei"
+                    + "naoincivneaoindlkfndkjfalienlifajelkfniaelfjledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs"
+                    + "naoincivneaoindlkfndkjfalienlifajelkfniaelfjledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs ok this is the end";
+            string longMessageTest2 = "naoincivneaoindlkfndkjfalienlifajelkfniaelfjledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs"
+                    + "Hello! This beings the long test: ksdanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjsdlfjei"
+                    + "naoincivneaoindlkfndkjfalienlifajelkfniaelfjledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs"
+                    + "naoincivneaoindlkfndkjfalienlifajelkfniaelfjledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs ok this is the end";
+            Console.WriteLine("           ledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs ok this is the end".Length);
+            Console.WriteLine("           nsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjsnaoincivneaoindlkfndkjfalienlifajelkfniaelfj".Length);
 
+            Console.WriteLine("longMessageTest:\n" + longMessageTest);
+            Console.WriteLine("longMessageTest2:\n" + longMessageTest2);
+            ConsoleMessage(longMessageTest, "TEST");
+            ConsoleMessage(longMessageTest2, "TEST");
             FileInfo existingFile = new FileInfo(inputExcel_UnitTestSetup_filePath);
             using (ExcelPackage package = new ExcelPackage(existingFile))
             {
@@ -1123,36 +1136,126 @@ namespace UnitTesting
         /// <param name="inputString">The input string to be wrapped.</param>
         /// <param name="indentLength">An integer that defines the length of the characters in the indent starting each new line.</param>
         /// <param name="lineLimit">An integer that defines the maximum number of characters per line before a new line is created.</param>
-        /// <returns>A modified string that wraps every 125 characters.</returns>
+        /// <returns>A modified string that wraps after a specified length of characters.</returns>
         private static string WrapText(string inputString, int indentLength, int lineLimit)
         {
             string[] words = inputString.Split(' ');
-            string indent = new(' ', indentLength);
-            StringBuilder newSentence = new();
+            string indent = new string(' ', indentLength);
+            StringBuilder newSentence = new StringBuilder();
             string line = "";
             int numberOfNewLines = 0;
-
+            bool newLongWord = true;
+            int longWordCharacterMinimum = 20;
+            //Console.WriteLine("\n\n");
             foreach (string word in words)
             {
-                word.Trim();
-                if ((line + word).Length > lineLimit)
+                string trimmedWord = word.Trim();
+
+
+                //Console.WriteLine("word: " + word);
+                //Console.WriteLine("line: " + line);
+                //Console.WriteLine("new sentence length: " + line.Length);
+                //Console.WriteLine("numberOfNewLines: " + numberOfNewLines);
+
+                // If the word is longer than the line limit # of characters, split it
+                //int longWordLimit = longWordCharacterMinimum;
+
+                //if (trimmedWord.Length < longWordCharacterMinimum)
+                //{
+                //    longWordLimit = lineLimit - (indentLength + line.Length);
+                //}
+                int longWordLimit = lineLimit - (indentLength + line.Length);
+                //Console.WriteLine("ABOVE WHILE trimmedWord.Length: " + trimmedWord.Length);
+                //Console.WriteLine("ABOVE WHILE line.Length: " + line.Length);
+                //Console.WriteLine("ABOVE WHILE indentLength: " + indentLength);
+                //Console.WriteLine("ABOVE WHILE lineLimit: " + lineLimit);
+                //Console.WriteLine("ABOVE WHILE longWordLimit: " + longWordLimit);
+                while ((trimmedWord.Length > longWordLimit) && ((line + trimmedWord).Length >= lineLimit))
                 {
-                    if (numberOfNewLines == 0)
-                        newSentence.AppendLine(line);
+                    //Console.WriteLine("INSIDE WHILE STATEMENT");
+                    string part = trimmedWord.Substring(0, longWordLimit);
+                    trimmedWord = trimmedWord.Substring(longWordLimit);
+                    //Console.WriteLine("part: " + part);
+                    //Console.WriteLine("INSIDE WHILE trimmedWord: " + trimmedWord);
+                    //Console.WriteLine("trimmedWord.Length: " + trimmedWord.Length);
+                    //Console.WriteLine("ABOVE WHILE longWordLimit: " + longWordLimit);
+
+                    //Console.WriteLine("(line + part).Length: " + (line + part).Length);
+                    //Console.WriteLine("INSIDE newLongWord: " + newLongWord);
+                    // Add the part to the StringBuilder and start a new line
+                    //Console.WriteLine("BOOL: " + ((part.Length <= (lineLimit - indentLength)) && newLongWord));
+                    //Console.WriteLine("BOOL: " + newLongWord);
+                    if ((part.Length == (lineLimit - indentLength)) && newLongWord)
+                    {
+                        newSentence.AppendLine(line + part);
+                        line = "";
+                        //Console.WriteLine("lineLimit: " + lineLimit);
+                        //Console.WriteLine("indentLength: " + indentLength);
+                        longWordLimit = lineLimit - indentLength;
+                        numberOfNewLines++;
+                        newLongWord = false;
+                    }
+                    else if ((part.Length < (lineLimit - indentLength)) && newLongWord)
+                    {
+                        newSentence.AppendLine(indent + line + part);
+                        line = "";
+                        //Console.WriteLine("lineLimit: " + lineLimit);
+                        //Console.WriteLine("indentLength: " + indentLength);
+                        longWordLimit = lineLimit - indentLength;
+                        numberOfNewLines++;
+                        newLongWord = false;
+                    }
+                    else if (part.Length == (lineLimit - indentLength))
+                    {
+                        newSentence.AppendLine(indent + part);
+                        //Console.WriteLine("IN WHILE indent + part: " + (indent + part).Length);
+                        numberOfNewLines++;
+                        line = "";
+                    }
+
+                    //if (numberOfNewLines > 0)
+                    //    newSentence.AppendLine(indent + part);
+                    //else
+                    //    newSentence.AppendLine(part);
+                    //numberOfNewLines++;
+                }
+                //Console.WriteLine("OUTSIDE1 newLongWord: " + newLongWord);
+
+                //Console.WriteLine("OUTSIDE2 newLongWord: " + newLongWord);
+
+                //Console.WriteLine("BETWEEN WHILE AND IF STATEMENT");
+                newLongWord = true;
+
+                //Console.WriteLine("(line + trimmedWord).Length: " + (line + trimmedWord).Length);
+                //Console.WriteLine("line: " + line);
+                //Console.WriteLine("trimmedWord: " + trimmedWord);
+                // Check if the current line plus the next word exceeds the line limit
+                if ((line + trimmedWord).Length >= (lineLimit - indentLength))
+                {
+                    //Console.WriteLine("INSIDE IF STATEMENT");
+                    // Add the current line to the StringBuilder and start a new line
+                    if ((numberOfNewLines > 0) || newLongWord)
+                        newSentence.AppendLine(indent + line.TrimEnd());
                     else
-                        newSentence.AppendLine(indent + line);
+                        newSentence.AppendLine(line.TrimEnd());
                     line = "";
                     numberOfNewLines++;
                 }
-                line += string.Format($"{word} ");
+
+
+                // Add the word (or the remaining part of it) to the current line
+                line += trimmedWord + " ";
             }
+
+            // Add the last line to the StringBuilder
             if (line.Length > 0)
             {
                 if (numberOfNewLines > 0)
-                    newSentence.AppendLine(indent + line);
+                    newSentence.Append(indent + line.TrimEnd()); // Use Append to avoid an extra newline
                 else
-                    newSentence.AppendLine(line);
+                    newSentence.Append(line.TrimEnd());
             }
+
             return newSentence.ToString();
         }
 
@@ -2160,11 +2263,11 @@ namespace UnitTesting
             }
             else
             {
-                messageCategory = messageCategory.PadLeft(9, ' ');
+                messageCategory = messageCategory.PadLeft(9, ' ') + "  ";
                 Console.Write(messageCategory);
             }
 
-            messageContents = WrapText(messageContents, 11, 80);
+            messageContents = WrapText(messageContents, 11, 120);
             Console.WriteLine(messageContents);
         }
 
