@@ -1139,109 +1139,83 @@ namespace UnitTesting
         /// <returns>A modified string that wraps after a specified length of characters.</returns>
         private static string WrapText(string inputString, int indentLength, int lineLimit)
         {
-            string[] words = inputString.Split(' ');
-            string indent = new string(' ', indentLength);
-            StringBuilder newSentence = new StringBuilder();
-            string line = "";
-            int numberOfNewLines = 0;
+            // Variables containing formatting information:
+            StringBuilder newSentence = new StringBuilder(); // The properly formatted string to be returned.
+            string[] words = inputString.Split(' ');         // An array where each element contains each word in an input string. 
+            string indent = new string(' ', indentLength);   // An empty string to be used for indenting.
+            string line = "";                                // The variable that will be modified and appended to the returned StringBuilder.
+
+            // Variables informing formatting logic:
             bool newLongWord = true;
-            int longWordCharacterMinimum = 20;
-            //Console.WriteLine("\n\n");
+            int numberOfNewLines = 0;
+            int numberOfLongWords = 0;
+            int indentedLimit = lineLimit - indentLength;
+
+            // Cycle through each word in the input string.
             foreach (string word in words)
             {
+                // The word (short or long) has any excess spaces removed. 
                 string trimmedWord = word.Trim();
 
+                // Required for "Long Word Splitting" Logic: This variable is used to wrap long words at the indentLength specified with indenting.
+                int partLength = lineLimit - (indentLength + line.Length);
 
-                //Console.WriteLine("word: " + word);
-                //Console.WriteLine("line: " + line);
-                //Console.WriteLine("new sentence length: " + line.Length);
-                //Console.WriteLine("numberOfNewLines: " + numberOfNewLines);
+                // Required for "Long Word Splitting" Logic: The # of long words determine how a long word component is added to the console.
+                if (trimmedWord.Length > partLength)
+                    numberOfLongWords++;
 
-                // If the word is longer than the line limit # of characters, split it
-                //int longWordLimit = longWordCharacterMinimum;
-
-                //if (trimmedWord.Length < longWordCharacterMinimum)
-                //{
-                //    longWordLimit = lineLimit - (indentLength + line.Length);
-                //}
-                int longWordLimit = lineLimit - (indentLength + line.Length);
-                //Console.WriteLine("ABOVE WHILE trimmedWord.Length: " + trimmedWord.Length);
-                //Console.WriteLine("ABOVE WHILE line.Length: " + line.Length);
-                //Console.WriteLine("ABOVE WHILE indentLength: " + indentLength);
-                //Console.WriteLine("ABOVE WHILE lineLimit: " + lineLimit);
-                //Console.WriteLine("ABOVE WHILE longWordLimit: " + longWordLimit);
-                while ((trimmedWord.Length > longWordLimit) && ((line + trimmedWord).Length >= lineLimit))
+                // "Long Word Splitting" Logic
+                // If the word is longer than the line limit # of characters, split it & wrap to the next line keeping indents.
+                while ((line + trimmedWord).Length > lineLimit)
                 {
-                    //Console.WriteLine("INSIDE WHILE STATEMENT");
-                    string part = trimmedWord.Substring(0, longWordLimit);
-                    trimmedWord = trimmedWord.Substring(longWordLimit);
-                    //Console.WriteLine("part: " + part);
-                    //Console.WriteLine("INSIDE WHILE trimmedWord: " + trimmedWord);
-                    //Console.WriteLine("trimmedWord.Length: " + trimmedWord.Length);
-                    //Console.WriteLine("ABOVE WHILE longWordLimit: " + longWordLimit);
+                    string part = trimmedWord.Substring(0, partLength); // A peice of the long word to add to the existing line. 
+                    trimmedWord = trimmedWord.Substring(partLength);    // The long word part is removed from trimmedWord.
 
-                    //Console.WriteLine("(line + part).Length: " + (line + part).Length);
-                    //Console.WriteLine("INSIDE newLongWord: " + newLongWord);
-                    // Add the part to the StringBuilder and start a new line
-                    //Console.WriteLine("BOOL: " + ((part.Length <= (lineLimit - indentLength)) && newLongWord));
-                    //Console.WriteLine("BOOL: " + newLongWord);
-                    if ((part.Length == (lineLimit - indentLength)) && newLongWord)
+                    // Scenario 1: This should only ever run once (newLongWord logic) 
+                    if ((part.Length <= indentedLimit) && (numberOfLongWords == 1) && (newLongWord))
                     {
                         newSentence.AppendLine(line + part);
                         line = "";
-                        //Console.WriteLine("lineLimit: " + lineLimit);
-                        //Console.WriteLine("indentLength: " + indentLength);
-                        longWordLimit = lineLimit - indentLength;
+                        partLength = indentedLimit;
                         numberOfNewLines++;
                         newLongWord = false;
                     }
-                    else if ((part.Length < (lineLimit - indentLength)) && newLongWord)
+                    //else if ((part.Length < indentedLimit) && (numberOfLongWords == 1))
+                    //{
+                    //    newSentence.AppendLine(line + part);
+                    //    line = "";
+                    //    partLength = indentedLimit;
+                    //    numberOfNewLines++;
+                    //    newLongWord = false;
+                    //}
+                    else if ((part.Length <= indentedLimit) && (numberOfLongWords >= 1))
                     {
                         newSentence.AppendLine(indent + line + part);
                         line = "";
-                        //Console.WriteLine("lineLimit: " + lineLimit);
-                        //Console.WriteLine("indentLength: " + indentLength);
-                        longWordLimit = lineLimit - indentLength;
+                        partLength = indentedLimit;
                         numberOfNewLines++;
-                        newLongWord = false;
                     }
-                    else if (part.Length == (lineLimit - indentLength))
-                    {
-                        newSentence.AppendLine(indent + part);
-                        //Console.WriteLine("IN WHILE indent + part: " + (indent + part).Length);
-                        numberOfNewLines++;
-                        line = "";
-                    }
-
-                    //if (numberOfNewLines > 0)
+                    //else if ((part.Length == indentedLimit) && (numberOfLongWords >= 1))
+                    //{
                     //    newSentence.AppendLine(indent + part);
-                    //else
-                    //    newSentence.AppendLine(part);
-                    //numberOfNewLines++;
+                    //    numberOfNewLines++;
+                    //}
                 }
-                //Console.WriteLine("OUTSIDE1 newLongWord: " + newLongWord);
 
-                //Console.WriteLine("OUTSIDE2 newLongWord: " + newLongWord);
-
-                //Console.WriteLine("BETWEEN WHILE AND IF STATEMENT");
+                // Required for "Long Word Splitting" Logic: Determines how a long word component is added to the console.
                 newLongWord = true;
 
-                //Console.WriteLine("(line + trimmedWord).Length: " + (line + trimmedWord).Length);
-                //Console.WriteLine("line: " + line);
-                //Console.WriteLine("trimmedWord: " + trimmedWord);
-                // Check if the current line plus the next word exceeds the line limit
+                // Check if the current line plus the next word exceeds the line limit.
                 if ((line + trimmedWord).Length >= (lineLimit - indentLength))
                 {
-                    //Console.WriteLine("INSIDE IF STATEMENT");
                     // Add the current line to the StringBuilder and start a new line
-                    if ((numberOfNewLines > 0) || newLongWord)
+                    if ((numberOfNewLines > 0))
                         newSentence.AppendLine(indent + line.TrimEnd());
                     else
                         newSentence.AppendLine(line.TrimEnd());
                     line = "";
                     numberOfNewLines++;
                 }
-
 
                 // Add the word (or the remaining part of it) to the current line
                 line += trimmedWord + " ";
