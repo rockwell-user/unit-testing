@@ -12,7 +12,7 @@ using RockwellAutomation.FactoryTalkLogixEcho.Api.Client;
 using RockwellAutomation.FactoryTalkLogixEcho.Api.Interfaces;
 using System.Globalization;
 
-namespace LogixEcho_ClassLibrary
+namespace LogixEcho
 {
     /// <summary>
     /// Class containing Factory Talk Logix Echo SDK methods needed for CI/CD test stage execution.
@@ -69,7 +69,7 @@ namespace LogixEcho_ClassLibrary
             // Get emulated controller information.
             string[] testControllerInfo = await GetControllerInfo_Async(chassisName, controllerName, serviceClient);
             string commPath = @"EmulateEthernet\" + testControllerInfo[1];
-            Console.WriteLine($"{FormatLineType("SUCCESS")}Project communication path specified is '{commPath}'");
+            Console.WriteLine($"{FormatLineType("STATUS")}Project communication path specified is '{commPath}'.");
             return commPath;
         }
         #region METHODS: setting up Logix Echo emulated controller
