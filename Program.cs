@@ -68,20 +68,6 @@ namespace UnitTesting
             bool keepL5Xs;
             string aoiFileName = "";
 
-            string longMessageTest = "Hello! This beings the long test: ksdanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjsdlfjei"
-                    + "naoincivneaoindlkfndkjfalienlifajelkfniaelfjledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs"
-                    + "naoincivneaoindlkfndkjfalienlifajelkfniaelfjledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs ok this is the end";
-            string longMessageTest2 = "naoincivneaoindlkfndkjfalienlifajelkfniaelfjledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs"
-                    + "Hello! This beings the long test: ksdanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjsdlfjei"
-                    + "naoincivneaoindlkfndkjfalienlifajelkfniaelfjledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs"
-                    + "naoincivneaoindlkfndkjfalienlifajelkfniaelfjledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs ok this is the end";
-            Console.WriteLine("           ledsfdsolijfdlsanveoincaleknsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjs ok this is the end".Length);
-            Console.WriteLine("           nsciaislencilsnkjfdkjlsfijoeincilanvienapoinev;oainlvineavjdklkjsnaoincivneaoindlkfndkjfalienlifajelkfniaelfj".Length);
-
-            Console.WriteLine("longMessageTest:\n" + longMessageTest);
-            Console.WriteLine("longMessageTest2:\n" + longMessageTest2);
-            ConsoleMessage(longMessageTest, "TEST");
-            ConsoleMessage(longMessageTest2, "TEST");
             FileInfo existingFile = new FileInfo(inputExcel_UnitTestSetup_filePath);
             using (ExcelPackage package = new ExcelPackage(existingFile))
             {
@@ -118,15 +104,34 @@ namespace UnitTesting
 
             // Create a new ACD project file.
             ConsoleMessage("START creating & opening new ACD unit test application file...", "NEWSECTION", false);
-            string acdPath = Path.Combine(@"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\",
-                DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiName + "_UnitTest.ACD"); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-            //string acdPath = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\20240716141455_AOIunittest.ACD";
             string? softwareRevision_string = GetAttributeValue(convertedAOIrung_L5Xfilepath, "RSLogix5000Content", "SoftwareRevision", false);
             uint softwareRevision_uint = ConvertStringToUint(softwareRevision_string);
-            string processorTypeName = "1756-L85E";
-            string controllerName2 = "UnitTest_Controller";
-            LogixProject project = await CreateNewProjectAsync(acdPath, softwareRevision_uint, processorTypeName, controllerName2);
-            ConsoleMessage($"File created at '{acdPath}'.", "STATUS");
+            //string processorTypeName = "1756-L85E";
+            //string controllerName2 = "UnitTest_Controller";
+            //LogixProject project = await CreateNewProjectAsync(acdPath, softwareRevision_uint, processorTypeName, controllerName2);
+            string faultHandlingApplication_L5Xcontents = XMLfiles.GetFaultHandlingApplicationXMLContents();
+            string L5Xpath = tempFolder + DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiName + "_UnitTest.L5X";
+            File.WriteAllText(L5Xpath, faultHandlingApplication_L5Xcontents);
+            LogixProject projectL5X = await LogixProject.ConvertAsync(L5Xpath, (int)softwareRevision_uint);
+            ConsoleMessage($"L5X application file created at '{L5Xpath}'.", "STATUS");
+            string acdPath = tempFolder + DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiName + "_UnitTest.ACD"; // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+            await projectL5X.SaveAsAsync(acdPath, true);
+            ConsoleMessage($"ACD application file created at '{acdPath}'.", "STATUS");
+            LogixProject projectACD = await LogixProject.OpenLogixProjectAsync(acdPath);
+            ConsoleMessage($"'{acdPath}' application file opened.", "STATUS");
+
+
+
+            //string faultHandlingRungContents_L5X = XMLfiles.GetFaultHandlingRungXMLContents(controllerName);
+            //string faultHandlingRung_L5Xfilepath = tempFolder + "generated_faulthandlingrung.L5X";
+            //File.WriteAllText(faultHandlingRung_L5Xfilepath, faultHandlingRungContents_L5X);
+            //string xPath_faultHandlingRung = @"Controller/Programs/Program[@Name='" + programName + @"']/Routines";
+            //await project.PartialImportFromXmlFileAsync(xPath_faultHandlingRung, faultHandlingRung_L5Xfilepath, ImportCollisionOptions.OverwriteOnColl);
+            //ConsoleMessage($"Imported '{faultHandlingRung_L5Xfilepath}' to '{acdPath}'.", "STATUS");
+
+
+
+
 
             //// =========================================================================
             //// LOGGER INFO (UNCOMMENT IF TROUBLESHOOTING)
@@ -156,130 +161,175 @@ namespace UnitTesting
 
 
             ConsoleMessage("START preparing programmatically created ACD...", "NEWSECTION");
-            // Create an empty program in the unscheduled folder of the new ACD application.
-            string emptyProgramContents_L5X = XMLfiles.GetEmptyProgramXMLContents(programName, routineName, controllerName, softwareRevision_string);
-            string emptyProgram_L5Xfilepath = tempFolder + "generated_programtarget.L5X";
-            File.WriteAllText(emptyProgram_L5Xfilepath, emptyProgramContents_L5X);
-            string xPath_programs = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
-            await project.PartialImportFromXmlFileAsync(xPath_programs, emptyProgram_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-            await project.SaveAsync();
+            //// Create an empty program in the unscheduled folder of the new ACD application.
+            //string emptyProgramContents_L5X = XMLfiles.GetEmptyProgramXMLContents(programName, routineName, controllerName, softwareRevision_string);
+            //string emptyProgram_L5Xfilepath = tempFolder + "generated_programtarget.L5X";
+            //File.WriteAllText(emptyProgram_L5Xfilepath, emptyProgramContents_L5X);
+            //string xPath_programs = @"Controller/Programs";  // THIS WORKS BUT GOES TO UNSCHEDULED FOLDER IN ACD
+            //await project.PartialImportFromXmlFileAsync(xPath_programs, emptyProgram_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            //await project.SaveAsync();
+            //ConsoleMessage($"Imported '{emptyProgram_L5Xfilepath}' to '{acdPath}'.", "STATUS");
 
-            // Add a task to the ACD application. The empty program is automatically grabbed.
-            string taskContents_L5X = XMLfiles.GetTaskXMLContents(taskName, programName, controllerName, softwareRevision_string);
-            string task_L5Xfilepath = tempFolder + "generated_tasktarget.L5X";
-            File.WriteAllText(task_L5Xfilepath, taskContents_L5X);
-            string xPath_tasks = @"Controller/Tasks";  // include program in task
-            await project.PartialImportFromXmlFileAsync(xPath_tasks, task_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-            await project.SaveAsync();
+            //// Add a task to the ACD application. The empty program is automatically grabbed.
+            //string taskContents_L5X = XMLfiles.GetTaskXMLContents(taskName, programName, controllerName, softwareRevision_string);
+            //string task_L5Xfilepath = tempFolder + "generated_tasktarget.L5X";
+            //File.WriteAllText(task_L5Xfilepath, taskContents_L5X);
+            //string xPath_tasks = @"Controller/Tasks";  // include program in task
+            //await project.PartialImportFromXmlFileAsync(xPath_tasks, task_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            //await project.SaveAsync();
+            //ConsoleMessage($"Imported '{task_L5Xfilepath}' to '{acdPath}'.", "STATUS");
 
             // Import the AOI.L5X being tested
             string xPath_aoiDef = @"Controller/AddOnInstructionDefinitions";
-            await project.PartialImportFromXmlFileAsync(xPath_aoiDef, aoi_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-            await project.SaveAsync();
+            await projectACD.PartialImportFromXmlFileAsync(xPath_aoiDef, aoi_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            await projectACD.SaveAsync();
+            ConsoleMessage($"Imported '{aoi_L5Xfilepath}' to '{acdPath}'.", "STATUS");
 
-            // Import FAULTRECORD UDT
-            string udtContents_L5X = XMLfiles.GetFaultRecordUDTXMLContents(controllerName);
-            string udt_L5Xfilepath = tempFolder + "generated_FAULTRECORD.L5X";
-            File.WriteAllText(udt_L5Xfilepath, udtContents_L5X);
-            string xPath_udtDef = @"Controller/DataTypes";
-            await project.PartialImportFromXmlFileAsync(xPath_udtDef, udt_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-            await project.SaveAsync();
+            //// Import FAULTRECORD UDT
+            //string udtContents_L5X = XMLfiles.GetFaultRecordUDTXMLContents(controllerName);
+            //string udt_L5Xfilepath = tempFolder + "generated_FAULTRECORD.L5X";
+            //File.WriteAllText(udt_L5Xfilepath, udtContents_L5X);
+            //string xPath_udtDef = @"Controller/DataTypes";
+            //await project.PartialImportFromXmlFileAsync(xPath_udtDef, udt_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            //await project.SaveAsync();
+            //ConsoleMessage($"Imported '{udt_L5Xfilepath}' to '{acdPath}'.", "STATUS");
 
-            // Import Fault Handler program -------------------------------------------------------------------------------------------------------------STILL IMPORTING TO UNSCHEDULED
-            string faultHandlerContents_L5X = XMLfiles.GetFaultHandlerProgramXMLContents(controllerName);
-            string faultHandler_L5Xfilepath = tempFolder + "generated_FaultHandlerProgram.L5X";
-            File.WriteAllText(faultHandler_L5Xfilepath, faultHandlerContents_L5X);
-            string xPath_faultHandlerDef = @"Controller/Programs";
-            await project.PartialImportFromXmlFileAsync(xPath_faultHandlerDef, faultHandler_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            //// Import Fault Handler program -------------------------------------------------------------------------------------------------------------STILL IMPORTING TO UNSCHEDULED
+            //string faultHandlerContents_L5X = XMLfiles.GetFaultHandlerProgramXMLContents(controllerName);
+            //string faultHandler_L5Xfilepath = tempFolder + "generated_FaultHandlerProgram.L5X";
+            //File.WriteAllText(faultHandler_L5Xfilepath, faultHandlerContents_L5X);
+            //string xPath_faultHandlerDef = @"Controller/Programs";
+            //await project.PartialImportFromXmlFileAsync(xPath_faultHandlerDef, faultHandler_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            //ConsoleMessage($"Imported '{faultHandler_L5Xfilepath}' to '{acdPath}'.", "STATUS");
 
-            // Add fault handling rung to rung 0
-            string faultHandlingRungContents_L5X = XMLfiles.GetFaultHandlingRungXMLContents(controllerName);
-            string faultHandlingRung_L5Xfilepath = tempFolder + "generated_faulthandlingrung.L5X";
-            File.WriteAllText(faultHandlingRung_L5Xfilepath, faultHandlingRungContents_L5X);
-            string xPath_faultHandlingRung = @"Controller/Programs/Program[@Name='" + programName + @"']/Routines";
-            await project.PartialImportFromXmlFileAsync(xPath_faultHandlingRung, faultHandlingRung_L5Xfilepath, ImportCollisionOptions.OverwriteOnColl);
+            //// Add fault handling rung to rung 0
+            //string faultHandlingRungContents_L5X = XMLfiles.GetFaultHandlingRungXMLContents(controllerName);
+            //string faultHandlingRung_L5Xfilepath = tempFolder + "generated_faulthandlingrung.L5X";
+            //File.WriteAllText(faultHandlingRung_L5Xfilepath, faultHandlingRungContents_L5X);
+            //string xPath_faultHandlingRung = @"Controller/Programs/Program[@Name='" + programName + @"']/Routines";
+            //await project.PartialImportFromXmlFileAsync(xPath_faultHandlingRung, faultHandlingRung_L5Xfilepath, ImportCollisionOptions.OverwriteOnColl);
+            //ConsoleMessage($"Imported '{faultHandlingRung_L5Xfilepath}' to '{acdPath}'.", "STATUS");
 
             // Add custom AOI rung to rung 1
-            ConvertAOItoRUNGxml(convertedAOIrung_L5Xfilepath, routineName, programName, true);
+            bool conversionPrintOut = false;
+            ConsoleMessage($"Print STATUS messages for AOI to rung conversion? Currently set to '{conversionPrintOut}'.", "STATUS");
+            ConvertAOItoRUNGxml(convertedAOIrung_L5Xfilepath, routineName, programName, conversionPrintOut);
             string xPath_convertedAOIrung = @"Controller/Programs/Program[@Name='" + programName + @"']/Routines";
-            await project.PartialImportFromXmlFileAsync(xPath_convertedAOIrung, convertedAOIrung_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
-            await project.SaveAsync();
+            await projectACD.PartialImportFromXmlFileAsync(xPath_convertedAOIrung, convertedAOIrung_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
+            await projectACD.SaveAsync();
+            ConsoleMessage($"Imported '{convertedAOIrung_L5Xfilepath}' to '{acdPath}'.", "STATUS");
 
 
 
             // Change controller mode to program & verify.
             ConsoleMessage("START changing controller to PROGRAM...", "NEWSECTION");
-            ChangeControllerMode_Async(commPath, "PROGRAM", project).GetAwaiter().GetResult();
-            if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "PROGRAM")
+            ChangeControllerMode_Async(commPath, "PROGRAM", projectACD).GetAwaiter().GetResult();
+            if (ReadControllerMode_Async(commPath, projectACD).GetAwaiter().GetResult() == "PROGRAM")
                 ConsoleMessage("SUCCESS changing controller to PROGRAM.", "STATUS", false);
             else
-                ConsoleMessage("FAILURE changing controller to PROGRAM.", "STATUS", false);
+                ConsoleMessage("FAILURE changing controller to PROGRAM.", "ERROR", false);
 
             // Download project.
             ConsoleMessage("START downloading ACD file...", "NEWSECTION");
-            DownloadProject_Async(commPath, project).GetAwaiter().GetResult();
+            DownloadProject_Async(commPath, projectACD).GetAwaiter().GetResult();
             ConsoleMessage("SUCCESS downloading ACD file.", "STATUS", false);
 
             // Change controller mode to run.
             ConsoleMessage("START changing controller to RUN...", "NEWSECTION");
-            ChangeControllerMode_Async(commPath, "RUN", project).GetAwaiter().GetResult();
-            if (ReadControllerMode_Async(commPath, project).GetAwaiter().GetResult() == "RUN")
+            ChangeControllerMode_Async(commPath, "RUN", projectACD).GetAwaiter().GetResult();
+            if (ReadControllerMode_Async(commPath, projectACD).GetAwaiter().GetResult() == "RUN")
                 ConsoleMessage("SUCCESS changing controller to RUN.", "STATUS", false);
             else
-                ConsoleMessage("FAILURE changing controller to RUN.", "STATUS", false);
+                ConsoleMessage("FAILURE changing controller to RUN.", "ERROR", false);
 
             // ---------------------------------------------------------------------------------------------------------------------------
 
             ConsoleMessage($"START {aoiName} unit testing...", "NEWSECTION");
             int failureCondition = 0;
             //Console.WriteLine("current fullTagPath: " + aoiTagScope);
-            ByteString udtoraoi_byteString = GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online);
+            ByteString udtoraoi_byteString = GetAOIbytestring_Sync(aoiTagScope, projectACD, OperationMode.Online);
 
             CDTTParameters[] testParams = GetAOIParameters_FromL5X(convertedAOIrung_L5Xfilepath); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-            testParams = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true);
+            testParams = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, projectACD, OperationMode.Online), true);
             Print_AOIParameters(testParams, aoiName, false);
+
+            // Test variables
+            string[] AT_FaultType_TagValue;
+            string[] AT_FaultCode_TagValue;
+            bool faultedState = false;
+            bool breakForLoop = false;
 
             // Iterate through and verify each test case (each column in the input excel sheet).
             int testCases = GetPopulatedColumnCount(inputExcel_UnitTestSetup_filePath, 18) - 1;
             for (int columnNumber = 4; columnNumber < (testCases + 4); columnNumber++)
             {
-                string testBannerContents = $"test {columnNumber - 3}/{testCases}";
+                int testNumber = columnNumber - 3;
+                string testBannerContents = $"test {testNumber}/{testCases}";
                 ConsoleMessage($"START {testBannerContents}...", "NEWSECTION", false);
 
-                // Add tests
+
+                // Rotate through inputs
                 Dictionary<string, string> currentColumn = GetExcelTestValues(inputExcel_UnitTestSetup_filePath, columnNumber);
                 foreach (var kvp in currentColumn)
                 {
                     if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Output")
                     {
                         //SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project).GetAwaiter().GetResult();
-                        await SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project);
+                        await SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, projectACD);
                     }
-                }
 
-                if (await ReadControllerMode_Async(commPath, project) != "FAULTED")
-                {
-                    foreach (var kvp in currentColumn)
+                    // Check if faulted
+                    AT_FaultType_TagValue = GetTagValue_Sync("AT_FaultType", DataType.DINT, "Controller/Tags/Tag", projectACD);
+                    AT_FaultCode_TagValue = GetTagValue_Sync("AT_FaultCode", DataType.DINT, "Controller/Tags/Tag", projectACD);
+                    faultedState = (AT_FaultType_TagValue[1] != "0") || (AT_FaultCode_TagValue[1] != "0");
+
+                    if (faultedState)
                     {
-                        //Console.WriteLine("second for loop kvp.key: " + kvp.Key);
-                        //Console.WriteLine("second for loop: " + GetCDTTParameter(kvp.Key, "Usage", testParams));
-                        if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Input")
+                        // Do faulted stuff
+                        ConsoleMessage($"Controller faulted upon setting '{kvp.Key}' to '{kvp.Value}'. | Fault Type: '{AT_FaultType_TagValue[1]}' & Fault Code: '{AT_FaultCode_TagValue[1]}'.", "ERROR");
+                        failureCondition++;
+
+                        ConsoleMessage($"Attempting to clear fault.", "STATUS");
+
+                        await SetSingleValue_UDTorAOI("0", aoiTagScope, kvp.Key, OperationMode.Online, testParams, projectACD);
+
+                        // Toggle reset to clear fault
+                        SetTagValue_Sync("AT_ClearFault", "true", OperationMode.Online, DataType.BOOL, "Controller/Tags/Tag", projectACD, true);
+                        SetTagValue_Sync("AT_ClearFault", "false", OperationMode.Online, DataType.BOOL, "Controller/Tags/Tag", projectACD, true);
+
+                        AT_FaultType_TagValue = GetTagValue_Sync("AT_FaultType", DataType.DINT, "Controller/Tags/Tag", projectACD);
+                        AT_FaultCode_TagValue = GetTagValue_Sync("AT_FaultCode", DataType.DINT, "Controller/Tags/Tag", projectACD);
+                        faultedState = (AT_FaultType_TagValue[1] != "0") || (AT_FaultCode_TagValue[1] != "0");
+
+                        if (faultedState)
                         {
-                            CDTTParameters[] newTestParameters = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, project, OperationMode.Online), true);
-                            string outputValue = GetCDTTParameter(kvp.Key, "Value", newTestParameters);
-
-                            failureCondition += TEST_CompareForExpectedValue(kvp.Key, kvp.Value, outputValue);
+                            ConsoleMessage("Controller still faulted. Ending Test.", "ERROR");
+                            breakForLoop = true;
+                            break;
                         }
-
+                        else if (testNumber < testCases)
+                        {
+                            columnNumber++;
+                            ConsoleMessage($"Moving to next test case...", "STATUS");
+                        }
                     }
                 }
-                else
-                {
-                    ConsoleMessage("Controller faulted.", "ERROR");
-                    failureCondition++;
-                    ChangeControllerMode_Async(commPath, "PROGRAM", project).GetAwaiter().GetResult();
 
-                    ChangeControllerMode_Async(commPath, "RUN", project).GetAwaiter().GetResult();
+                if (breakForLoop)
+                    break;
+
+
+                // Rotate through outputs
+                foreach (var kvp in currentColumn)
+                {
+                    if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Input")
+                    {
+                        CDTTParameters[] newTestParameters = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, projectACD, OperationMode.Online), true);
+                        string outputValue = GetCDTTParameter(kvp.Key, "Value", newTestParameters);
+
+                        failureCondition += TEST_CompareForExpectedValue(kvp.Key, kvp.Value, outputValue, true);
+                    }
+
                 }
             }
 
@@ -301,17 +351,20 @@ namespace UnitTesting
             ConsoleMessage("START keeping/deleting programmatically generated L5X files...", "NEWSECTION");
             if (!keepL5Xs)
             {
-                File.Delete(emptyProgram_L5Xfilepath);
-                File.Delete(task_L5Xfilepath);
+                //File.Delete(emptyProgram_L5Xfilepath);
+                //File.Delete(task_L5Xfilepath);
+                File.Delete(L5Xpath);
                 File.Delete(convertedAOIrung_L5Xfilepath);
-                ConsoleMessage($"Deleted '{emptyProgram_L5Xfilepath}'.", "STATUS");
-                ConsoleMessage($"Deleted '{task_L5Xfilepath}'.", "STATUS");
+                //ConsoleMessage($"Deleted '{emptyProgram_L5Xfilepath}'.", "STATUS");
+                //ConsoleMessage($"Deleted '{task_L5Xfilepath}'.", "STATUS");
+                ConsoleMessage($"Deleted '{L5Xpath}'.", "STATUS");
                 ConsoleMessage($"Deleted '{convertedAOIrung_L5Xfilepath}'.", "STATUS");
             }
             else
             {
-                ConsoleMessage($"Retained '{emptyProgram_L5Xfilepath}'.", "STATUS");
-                ConsoleMessage($"Retained '{task_L5Xfilepath}'.", "STATUS");
+                //ConsoleMessage($"Retained '{emptyProgram_L5Xfilepath}'.", "STATUS");
+                //ConsoleMessage($"Retained '{task_L5Xfilepath}'.", "STATUS");
+                ConsoleMessage($"Retained '{L5Xpath}'.", "STATUS");
                 ConsoleMessage($"Retained '{convertedAOIrung_L5Xfilepath}'.", "STATUS");
             }
 
@@ -327,7 +380,7 @@ namespace UnitTesting
                 ConsoleMessage($"Retained '{acdPath}'.", "STATUS");
             }
 
-            await project.GoOfflineAsync();
+            await projectACD.GoOfflineAsync();
 
 
 
@@ -487,8 +540,13 @@ namespace UnitTesting
             AddAttributeToComplexElement(xmlFilePath, "Rung", "Number", "1", printOut);
             AddAttributeToComplexElement(xmlFilePath, "Rung", "Type", "N", printOut);
 
-            AddElementToComplexElement(xmlFilePath, "Rung", "Text", printOut);
+            AddElementToComplexElement(xmlFilePath, "Rung", "Comment", printOut);
+            string cdataInfo_forComment = @"AUTOMATED TESTING | " + aoiName + @" AOI Unit Test
+                    - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+                    This a programmatically created rung with a populated instance of the AOI instruction added using the Logix Designer SDK.";
+            AddCDATA(xmlFilePath, "Comment", cdataInfo_forComment, printOut);
 
+            AddElementToComplexElement(xmlFilePath, "Rung", "Text", printOut);
             string cdataInfo_forText = GetCDATAfromXML_forText(xmlFilePath, printOut);
             AddCDATA(xmlFilePath, "Text", cdataInfo_forText, printOut);
         }
@@ -1143,13 +1201,13 @@ namespace UnitTesting
             StringBuilder newSentence = new StringBuilder(); // The properly formatted string to be returned.
             string[] words = inputString.Split(' ');         // An array where each element contains each word in an input string. 
             string indent = new string(' ', indentLength);   // An empty string to be used for indenting.
-            string line = "";                                // The variable that will be modified and appended to the returned StringBuilder.
+            string line = "";                                // The variable that will be modified and appended to the returned StringBuilder for each line.
 
             // Variables informing formatting logic:
             bool newLongWord = true;
             int numberOfNewLines = 0;
             int numberOfLongWords = 0;
-            int indentedLimit = lineLimit - indentLength;
+            int indentedLineLimit = lineLimit - indentLength;
 
             // Cycle through each word in the input string.
             foreach (string word in words)
@@ -1161,71 +1219,68 @@ namespace UnitTesting
                 int partLength = lineLimit - (indentLength + line.Length);
 
                 // Required for "Long Word Splitting" Logic: The # of long words determine how a long word component is added to the console.
-                if (trimmedWord.Length > partLength)
+                // Long words for this method are defined as words that are above the character number of line limit minus indent length.
+                if (trimmedWord.Length >= partLength)
                     numberOfLongWords++;
 
                 // "Long Word Splitting" Logic
                 // If the word is longer than the line limit # of characters, split it & wrap to the next line keeping indents.
-                while ((line + trimmedWord).Length > lineLimit)
+                while (((line + trimmedWord).Length >= indentedLineLimit) && (trimmedWord.Length >= indentedLineLimit))
                 {
+
                     string part = trimmedWord.Substring(0, partLength); // A peice of the long word to add to the existing line. 
                     trimmedWord = trimmedWord.Substring(partLength);    // The long word part is removed from trimmedWord.
 
-                    // Scenario 1: This should only ever run once (newLongWord logic) 
-                    if ((part.Length <= indentedLimit) && (numberOfLongWords == 1) && (newLongWord))
+                    // Long Word Scenario 1: This should only ever run once the first time a long word goes through the while loop.
+                    if (((numberOfLongWords == 1) || (numberOfNewLines == 0)) && (newLongWord))
                     {
-                        newSentence.AppendLine(line + part);
-                        line = "";
-                        partLength = indentedLimit;
-                        numberOfNewLines++;
-                        newLongWord = false;
+                        newSentence.AppendLine(line + part);            // Add line & part to return string. No indent b/c either the long word starts the message
+                                                                        // or because the long word part gets added to the current line that already has words.
+                        line = "";                                      // Reset the line string.
+                        numberOfNewLines++;                             // Count up for number of new lines.
+                        newLongWord = false;                            // Lock this if statement (Scenario 1) from being run again.
+                        partLength = indentedLineLimit;
                     }
-                    //else if ((part.Length < indentedLimit) && (numberOfLongWords == 1))
-                    //{
-                    //    newSentence.AppendLine(line + part);
-                    //    line = "";
-                    //    partLength = indentedLimit;
-                    //    numberOfNewLines++;
-                    //    newLongWord = false;
-                    //}
-                    else if ((part.Length <= indentedLimit) && (numberOfLongWords >= 1))
+                    // Long Word Scenario 2: All other subsequent lines with long words (or long word components) need to be indented.
+                    else
                     {
-                        newSentence.AppendLine(indent + line + part);
-                        line = "";
-                        partLength = indentedLimit;
-                        numberOfNewLines++;
+                        newSentence.AppendLine(indent + line + part);   // Add indented current line with part. (Note: line could be 0 chars if part is long enough.)
+                        line = "";                                      // Reset the line string.
+                        numberOfNewLines++;                             // Count up for number of new lines.
+                        partLength = indentedLineLimit;
                     }
-                    //else if ((part.Length == indentedLimit) && (numberOfLongWords >= 1))
-                    //{
-                    //    newSentence.AppendLine(indent + part);
-                    //    numberOfNewLines++;
-                    //}
                 }
 
                 // Required for "Long Word Splitting" Logic: Determines how a long word component is added to the console.
                 newLongWord = true;
 
-                // Check if the current line plus the next word exceeds the line limit.
-                if ((line + trimmedWord).Length >= (lineLimit - indentLength))
+                // "Adding Line" Logic
+                // Check if the current line plus the next word (or the remaining part of a long word) exceeds the line limit (accounting for indenting).
+                if ((line + trimmedWord).Length >= indentedLineLimit)
                 {
-                    // Add the current line to the StringBuilder and start a new line
-                    if ((numberOfNewLines > 0))
+                    // Line Scenario 1: If not the first line, add indented current line to return string. 
+                    if (numberOfNewLines > 0)
+                    {
                         newSentence.AppendLine(indent + line.TrimEnd());
+                    }
+                    // Line Scenario 2: If the first line, add the current line without indents to return string.
                     else
+                    {
                         newSentence.AppendLine(line.TrimEnd());
-                    line = "";
-                    numberOfNewLines++;
+                    }
+                    line = "";           // Reset the line string.
+                    numberOfNewLines++;  // Count up for number of new lines.
                 }
 
-                // Add the word (or the remaining part of it) to the current line
+                // Add the word (or the remaining part of a long word) to the current line.
                 line += trimmedWord + " ";
             }
 
-            // Add the last line to the StringBuilder
+            // Same as "Adding Line" Logic where the line contents are the remaining input string contents under the line limit. 
             if (line.Length > 0)
             {
                 if (numberOfNewLines > 0)
-                    newSentence.Append(indent + line.TrimEnd()); // Use Append to avoid an extra newline
+                    newSentence.Append(indent + line.TrimEnd());
                 else
                     newSentence.Append(line.TrimEnd());
             }
@@ -1584,7 +1639,7 @@ namespace UnitTesting
         /// return_array[1] = online tag value<br/>
         /// return_array[2] = offline tag value
         /// </returns>
-        private static string[] GetTagValue_Sync(string tagName, DataType type, string tagPath, LogixProject project, bool printout)
+        private static string[] GetTagValue_Sync(string tagName, DataType type, string tagPath, LogixProject project, bool printout = false)
         {
             var task = GetTagValue_Async(tagName, type, tagPath, project, printout);
             task.Wait();
@@ -1677,8 +1732,8 @@ namespace UnitTesting
                 if ((new_tag_value_string == "1") && (type == DataType.BOOL)) { new_tag_value_string = "True"; }
                 if ((new_tag_value_string == "0") && (type == DataType.BOOL)) { new_tag_value_string = "False"; }
 
-                string outputMessage = $"{old_tag_values[0].PadRight(40, ' ')}{old_tag_value.PadLeft(20, ' ')} --> {new_tag_value_string}";
-                ConsoleMessage(outputMessage, "SUCCESS");
+                string outputMessage = $"{old_tag_values[0],-40} {old_tag_value,20} -> {new_tag_value_string,-20}";
+                ConsoleMessage(outputMessage, "STATUS");
             }
         }
 
@@ -1697,7 +1752,7 @@ namespace UnitTesting
         /// </param>
         /// <param name="project">An instance of the LogixProject class.</param>
         /// <param name="printout">A boolean that, if True, prints the online and offline values to the console.</param>
-        private static void SetTagValue_Sync(string tagName, string newTagValue, OperationMode mode, DataType type, string tagPath, LogixProject project, bool printout)
+        private static void SetTagValue_Sync(string tagName, string newTagValue, OperationMode mode, DataType type, string tagPath, LogixProject project, bool printout = false)
         {
             var task = SetTagValue_Async(tagName, newTagValue, mode, type, tagPath, project, printout);
             task.Wait();
@@ -1785,10 +1840,10 @@ namespace UnitTesting
         {
             ByteString input_ByteString = GetAOIbytestring_Sync(aoiTagPath, project, mode);
             byte[] new_byteArray = input_ByteString.ToByteArray();
-            int arraySize = input_TagDataArray.Length;
+            int inputArraySize = input_TagDataArray.Length;
             string oldParameterValue = "";
 
-            for (int j = 0; j < arraySize; j++)
+            for (int j = 0; j < inputArraySize; j++)
             {
                 // Search the TagData[] array to get the associated newTagValue data needed.
                 if (input_TagDataArray[j].Name == parameterName)
@@ -2256,17 +2311,20 @@ namespace UnitTesting
         /// The integer output is added to an integer that tracks the total number of failures.<br/>
         /// At the end of all testing, the overall SUCCESS/FAILURE of this CI/CD test stage is determined whether its value is greater than 0.
         /// </remarks>
-        private static int TEST_CompareForExpectedValue(string tagName, string expectedValue, string actualValue)
+        private static int TEST_CompareForExpectedValue(string tagName, string expectedValue, string actualValue, bool printOut)
         {
             if (expectedValue != actualValue)
             {
-                ConsoleMessage($"{tagName} expected value '{expectedValue}' & actual value '{actualValue}' NOT equal.", "FAIL");
+                if (printOut)
+                    ConsoleMessage($"{tagName} expected value '{expectedValue}' & actual value '{actualValue}' NOT equal.", "FAIL");
 
                 return 1;
             }
             else
             {
-                ConsoleMessage($"{tagName} expected value '{expectedValue}' & actual value '{actualValue}' EQUAL.", "PASS");
+                if (printOut)
+                    ConsoleMessage($"{tagName} expected value '{expectedValue}' & actual value '{actualValue}' EQUAL.", "PASS");
+
                 return 0;
             }
         }
