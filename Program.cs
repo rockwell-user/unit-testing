@@ -47,19 +47,15 @@ namespace AOIUnitTest
             #region PARSE & INITIALIZE VARIABLES
             // static async Task Main(string[] args)
             // {
-            //      string firstArg = args.Length > 0 ? args[1] : "default value";
-
-            // INCOMING VARIABLES TO FIGURE OUT
-            // string inputExcel_filePath
-            // string outputExcel_filepath 
-
+            //      string inputExcel_UnitTestSetup_filePath = args.Length > 0 ? args[1] : "default value";
+            //      string tempFolder = args.Length > 0 ? args[1] : "default value";
+            //      string outputExcel_UnitTestResults_filepath = args.Length > 0 ? args[1] : "default value";
+            // }
             string inputExcel_UnitTestSetup_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest\WetBulbTemperature_FaultCase.xlsx";
-
+            string tempFolder = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\";// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
             string outputExcel_UnitTestResults_filepath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports" + DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.xlsx";
 
-            string tempFolder = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\";// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-
-            // The below parameters are used to create the ACD application that will be testing the Add-On Instruction specified in the input excel sheet. 
+            // The below parameters are used to create the ACD application that will be testing the Add-On Instruction specified in the input excel sheet.
             string echoChassisName = "UnitTest_Chassis";
             string controllerName = "UnitTest_Controller";
             string taskName = "T00_AOI_Testing";
@@ -71,7 +67,7 @@ namespace AOIUnitTest
             bool keepACD;
             bool keepL5Xs;
             string aoiFileName = "";
-            string commPath = "";
+            //string commPath = "";
 
             FileInfo existingFile = new FileInfo(inputExcel_UnitTestSetup_filePath);
             using (ExcelPackage package = new ExcelPackage(existingFile))
@@ -96,7 +92,7 @@ namespace AOIUnitTest
             string? softwareRevision = GetAttributeValue(convertedAOIrung_L5Xfilepath, "RSLogix5000Content", "SoftwareRevision", false);
             uint softwareRevision_uint = ConvertStringToUint(softwareRevision);
 
-            string faultHandlingApplication_L5Xcontents = L5XfileMethods.GetFaultHandlingApplicationL5XContents(routineName, programName, taskName, routineName_FaultHandler, programName_FaultHandler, controllerName, processorType, softwareRevision, commPath); ;
+            string faultHandlingApplication_L5Xcontents = L5XfileMethods.GetFaultHandlingApplicationL5XContents(routineName, programName, taskName, routineName_FaultHandler, programName_FaultHandler, controllerName, processorType, softwareRevision); ;
             string L5Xpath = tempFolder + DateTime.Now.ToString("yyyyMMddHHmmss") + "_" + aoiName + "_UnitTest.L5X";
             File.WriteAllText(L5Xpath, faultHandlingApplication_L5Xcontents);
             LogixProject projectL5X = await LogixProject.ConvertAsync(L5Xpath, (int)softwareRevision_uint);
@@ -126,7 +122,8 @@ namespace AOIUnitTest
 
             // Set up emulated controller (based on the specified ACD file path) if one does not yet exist. If not, continue.
             ConsoleMessage("START setting up Factory Talk Logix Echo emulated controller...", "NEWSECTION");
-            commPath = SetUpEmulatedController_Sync(acdPath, echoChassisName, controllerName);
+            string commPath = LogixEchoMethods.Main(acdPath, echoChassisName, controllerName).GetAwaiter().GetResult();
+            ConsoleMessage($"Project communication path specified is '{commPath}'.", "STATUS");
 
             ConsoleMessage("START preparing ACD application for test...", "NEWSECTION");
             // Import the AOI.L5X being tested
@@ -231,6 +228,7 @@ namespace AOIUnitTest
                         {
                             ConsoleMessage("Controller still faulted. Ending Test.", "ERROR");
                             await LogixEchoMethods.DeleteChassis_Async(echoChassisName);
+                            ConsoleMessage($"Deleted chassis '{echoChassisName}'.", "STATUS");
                             breakUnitTestLoop = true;
                             break;
                         }
@@ -1919,23 +1917,6 @@ namespace AOIUnitTest
             }
 
             return output_TagDataArray;
-        }
-        #endregion
-
-        #region METHODS: setting up Logix Echo emulated controller
-        /// <summary>
-        /// Run the Echo_Program script synchronously.<br/>
-        /// Script that sets up an emulated controller for CI/CD software in the loop (SIL) testing.<br/>
-        /// If no emulated controller based on the ACD file path yet exists, create one, and then return the communication path.<br/>
-        /// If an emulated controller based on the ACD file path exists, only return the communication path.
-        /// </summary>
-        /// <param name="acdFilePath">The file path to the Studio 5000 Logix Designer ACD file being tested.</param>
-        /// <returns>A string containing the communication path of the emulated controller that the ACD project file will go online with during testing.</returns>
-        private static string SetUpEmulatedController_Sync(string acdFilePath, string chassis_name, string controller_name)
-        {
-            var task = LogixEchoMethods.Main(acdFilePath, chassis_name, controller_name);
-            task.Wait();
-            return task.Result;
         }
         #endregion
 
