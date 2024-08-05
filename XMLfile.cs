@@ -1,16 +1,16 @@
-namespace L5Xs
+namespace L5Xfiles
 {
-    internal class XMLfiles
+    internal class L5XfileMethods
     {
 
 
 
-        public static string GetFaultHandlingApplicationXMLContents() //string routineName_UT, string programName, string taskName, string controllerName, string softwareRevision
+        public static string GetFaultHandlingApplicationL5XContents(string routineName, string programName, string taskName, string routineName_FaultHandler, string programName_FaultHandler, string controllerName, string processorType, string softwareRevision)
         {
             return @"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
-				<RSLogix5000Content SchemaRevision=""1.0"" SoftwareRevision=""36.00"" TargetName=""UnitTest_Controller"" TargetType=""Controller"" ContainsContext=""false"" ExportDate=""Thu Aug 01 14:44:47 2024"" ExportOptions=""NoRawData L5KData DecoratedData ForceProtectedEncoding AllProjDocTrans"">
-					<Controller Use=""Target"" Name=""UnitTest_Controller"" ProcessorType=""1756-L85E"" MajorRev=""36"" MinorRev=""11"" MajorFaultProgram=""PXX_FaultHandler"" ProjectCreationDate=""Mon Jul 29 14:17:13 2024"" LastModifiedDate=""Wed Jul 31 21:12:30 2024"" SFCExecutionControl=""CurrentActive"" SFCRestartPosition=""MostRecent"" SFCLastScan=""DontScan""
-					CommPath=""EmulateEthernet\127.0.0.1"" ProjectSN=""16#0000_0000"" MatchProjectToController=""false"" CanUseRPIFromProducer=""false"" InhibitAutomaticFirmwareUpdate=""0"" PassThroughConfiguration=""EnabledWithAppend"" DownloadProjectDocumentationAndExtendedProperties=""true"" DownloadProjectCustomProperties=""true"" ReportMinorOverflow=""false"" AutoDiagsEnabled=""true"" WebServerEnabled=""false"">
+				<RSLogix5000Content SchemaRevision=""1.0"" SoftwareRevision=""" + softwareRevision + @""" TargetName=""" + controllerName + @""" TargetType=""Controller"" ContainsContext=""false"" ExportDate=""" + DateTime.Now.ToString("ddd MMM dd HH:mm:ss yyyy") + @""" ExportOptions=""NoRawData L5KData DecoratedData ForceProtectedEncoding AllProjDocTrans"">
+					<Controller Use=""Target"" Name=""" + controllerName + @""" ProcessorType=""" + processorType + @""" MajorRev=""" + GetStringPart(softwareRevision, "LEFT") + @""" MinorRev=""" + GetStringPart(softwareRevision, "RIGHT") + @""" MajorFaultProgram=""" + programName_FaultHandler + @""" ProjectCreationDate=""Mon Jul 29 14:17:13 2024"" LastModifiedDate=""Wed Jul 31 21:12:30 2024"" SFCExecutionControl=""CurrentActive"" SFCRestartPosition=""MostRecent"" SFCLastScan=""DontScan""
+					CommPath="""" ProjectSN=""16#0000_0000"" MatchProjectToController=""false"" CanUseRPIFromProducer=""false"" InhibitAutomaticFirmwareUpdate=""0"" PassThroughConfiguration=""EnabledWithAppend"" DownloadProjectDocumentationAndExtendedProperties=""true"" DownloadProjectCustomProperties=""true"" ReportMinorOverflow=""false"" AutoDiagsEnabled=""true"" WebServerEnabled=""false"">
 						<RedundancyInfo Enabled=""false"" KeepTestEditsOnSwitchOver=""false""/>
 						<Security Code=""0"" ChangesToDetect=""16#ffff_ffff_ffff_ffff""/>
 						<SafetyInfo/>
@@ -133,10 +133,10 @@ namespace L5Xs
 							</Tag>
 						</Tags>
 						<Programs>
-							<Program Name=""P00_AOI_Testing"" TestEdits=""false"" MainRoutineName=""R00_AOI_Testing"" Disabled=""false"" UseAsFolder=""false"">
+							<Program Name=""" + programName + @""" TestEdits=""false"" MainRoutineName=""" + routineName + @""" Disabled=""false"" UseAsFolder=""false"">
 								<Tags/>
 								<Routines>
-									<Routine Name=""R00_AOI_Testing"" Type=""RLL"">
+									<Routine Name=""" + routineName + @""" Type=""RLL"">
 										<RLLContent>
 											<Rung Number=""0"" Type=""N"">
 												<Comment>
@@ -152,10 +152,10 @@ namespace L5Xs
 									</Routine>
 								</Routines>
 							</Program>
-							<Program Name=""PXX_FaultHandler"" TestEdits=""false"" MainRoutineName=""RXX_FaultHandler"" Disabled=""false"" UseAsFolder=""false"">
+							<Program Name=""" + programName_FaultHandler + @""" TestEdits=""false"" MainRoutineName=""" + routineName_FaultHandler + @""" Disabled=""false"" UseAsFolder=""false"">
 								<Tags/>
 								<Routines>
-									<Routine Name=""RXX_FaultHandler"" Type=""RLL"">
+									<Routine Name=""" + routineName_FaultHandler + @""" Type=""RLL"">
 										<RLLContent>
 											<Rung Number=""0"" Type=""N"">
 												<Comment>
@@ -179,9 +179,9 @@ namespace L5Xs
 							</Program>
 						</Programs>
 						<Tasks>
-							<Task Name=""T00_AOI_Testing"" Type=""CONTINUOUS"" Priority=""10"" Watchdog=""500"" DisableUpdateOutputs=""false"" InhibitTask=""false"">
+							<Task Name=""" + taskName + @""" Type =""CONTINUOUS"" Priority=""10"" Watchdog=""500"" DisableUpdateOutputs=""false"" InhibitTask=""false"">
 								<ScheduledPrograms>
-									<ScheduledProgram Name=""P00_AOI_Testing""/>
+									<ScheduledProgram Name=""" + programName + @"""/>
 								</ScheduledPrograms>
 							</Task>
 						</Tasks>
@@ -194,7 +194,21 @@ namespace L5Xs
 							<EthernetPort Port=""1"" Label=""1"" PortEnabled=""true""/>
 						</EthernetPorts>
 					</Controller>
-				</RSLogix5000Content>";
+				</RSLogix5000Content>"
+            ;
+        }
+
+        private static string GetStringPart(string input, string side)
+        {
+            int periodIndex = input.IndexOf('.');
+            side = side.ToUpper().Trim();
+
+            if (side == "LEFT")
+                return input.Substring(0, periodIndex);
+            else if (side == "RIGHT")
+                return input.Substring(periodIndex + 1);
+            else
+                return input;
         }
     }
 }
