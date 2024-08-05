@@ -4,7 +4,7 @@
 // FileType: Visual C# Source file
 // Author : Rockwell Automation Engineering
 // Created : 2024
-// Description : This script conducts Add-On Instruction unit testing, utilizing Studio 5000 Logix Designer SDK and Factory Talk Logix Echo SDK.
+// Description : This script conducts Add-On Instruction (AOI) unit testing, utilizing Studio 5000 Logix Designer SDK and Factory Talk Logix Echo SDK.
 //
 // ------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -43,6 +43,8 @@ namespace AOIUnitTest
 
         static async Task Main()
         {
+            // Parse the incoming variables into the main method & set up global variables
+            #region PARSE & INITIALIZE VARIABLES
             // static async Task Main(string[] args)
             // {
             //      string firstArg = args.Length > 0 ? args[1] : "default value";
@@ -53,8 +55,7 @@ namespace AOIUnitTest
 
             string inputExcel_UnitTestSetup_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\AOIs_toTest\WetBulbTemperature_FaultCase.xlsx";
 
-            string exampleTestReportsFolder_filePath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports";
-            string outputExcel_UnitTestResults_filepath = Path.Combine(exampleTestReportsFolder_filePath, DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.xlsx"); ;
+            string outputExcel_UnitTestResults_filepath = @"C:\Users\ASYost\Desktop\UnitTesting\exampleTestReports" + DateTime.Now.ToString("yyyyMMddHHmmss") + "_testfile.xlsx";
 
             string tempFolder = @"C:\Users\ASYost\Desktop\UnitTesting\ACD_testFiles_generated\";// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
 
@@ -87,7 +88,9 @@ namespace AOIUnitTest
             string convertedAOIrung_L5Xfilepath = CopyXmlFile(aoi_L5Xfilepath, false);// ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
             string? aoiName = GetAttributeValue(convertedAOIrung_L5Xfilepath, "AddOnInstructionDefinition", "Name", false); // The name of the AOI being testing.
             string aoiTagScope = $"Controller/Tags/Tag[@Name='AOI_{aoiName}']";
+            #endregion
 
+            #region STAGING TEST: create new ACD -> Logix Echo emulation FINISH THIS LATER
             // Create a new ACD project file.
             ConsoleMessage("START creating new ACD unit test application file...", "NEWSECTION", false);
             string? softwareRevision = GetAttributeValue(convertedAOIrung_L5Xfilepath, "RSLogix5000Content", "SoftwareRevision", false);
@@ -113,24 +116,17 @@ namespace AOIUnitTest
             //project.AddEventHandler(logger);
             //// =========================================================================
 
-            // Executed only once on the first AOI tested.
+            // Execute only if the specified output file does not exist
             if (!File.Exists(outputExcel_UnitTestResults_filepath))
             {
                 // Create an excel test report to be filled out during testing.
                 ConsoleMessage("START setting up excel test report workbook...", "NEWSECTION");
                 //CreateFormattedExcelFile(outputExcel_UnitTestResults_filepath, acdPath, name_mostRecentCommit, email_mostRecentCommit, jenkinsBuildNumber, jenkinsJobName, hash_mostRecentCommit, message_mostRecentCommit);
-
-                // Check the test-reports folder and if over the specified file number limit, delete the oldest test files.
-                ConsoleMessage("START checking test-reports folder...", "NEWSECTION");
-                CleanTestReportsFolder(exampleTestReportsFolder_filePath, 5);
             }
 
             // Set up emulated controller (based on the specified ACD file path) if one does not yet exist. If not, continue.
             ConsoleMessage("START setting up Factory Talk Logix Echo emulated controller...", "NEWSECTION");
             commPath = SetUpEmulatedController_Sync(acdPath, echoChassisName, controllerName);
-
-
-
 
             ConsoleMessage("START preparing ACD application for test...", "NEWSECTION");
             // Import the AOI.L5X being tested
@@ -146,8 +142,6 @@ namespace AOIUnitTest
             await projectACD.PartialImportFromXmlFileAsync(xPath_convertedAOIrung, convertedAOIrung_L5Xfilepath, LogixProject.ImportCollisionOptions.OverwriteOnColl);
             await projectACD.SaveAsync();
             ConsoleMessage($"Imported '{convertedAOIrung_L5Xfilepath}' to '{acdPath}'.", "STATUS");
-
-
 
             // Change controller mode to program & verify.
             ConsoleMessage("START changing controller to PROGRAM...", "NEWSECTION");
@@ -169,10 +163,9 @@ namespace AOIUnitTest
                 ConsoleMessage("SUCCESS changing controller to RUN.", "STATUS", false);
             else
                 ConsoleMessage("FAILURE changing controller to RUN.", "ERROR", false);
+            #endregion
 
-            // ---------------------------------------------------------------------------------------------------------------------------
-
-            #region STEP: AOI Unit Testing - Iterate through each test case from the excel sheet. Set & check parameters per test case.
+            #region COMMENCE TEST: Iterate through each test case from the excel sheet. Set & check parameters per test case.
             ConsoleMessage($"START {aoiName} unit testing...", "NEWSECTION");
 
             int failureCondition = 0;  // This variable tracks the number of failed test cases or controller faults.
@@ -204,7 +197,7 @@ namespace AOIUnitTest
                 Dictionary<string, string> currentColumn = GetExcelTestValues(inputExcel_UnitTestSetup_filePath, columnNumber);
                 foreach (var kvp in currentColumn)
                 {
-                    if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Output")
+                    if (GetAOIParameter(kvp.Key, "Usage", testParams) != "Output")
                     {
                         //SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project).GetAwaiter().GetResult();
                         await SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, projectACD, true);
@@ -260,10 +253,10 @@ namespace AOIUnitTest
                     if (breakOutputParameterLoop)
                         break;
 
-                    if (GetCDTTParameter(kvp.Key, "Usage", testParams) != "Input")
+                    if (GetAOIParameter(kvp.Key, "Usage", testParams) != "Input")
                     {
                         AOIParameter[] newTestParameters = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, projectACD, OperationMode.Online), true);
-                        string outputValue = GetCDTTParameter(kvp.Key, "Value", newTestParameters);
+                        string outputValue = GetAOIParameter(kvp.Key, "Value", newTestParameters);
 
                         failureCondition += TEST_CompareForExpectedValue(kvp.Key, kvp.Value, outputValue, true);
                     }
@@ -272,7 +265,7 @@ namespace AOIUnitTest
             }
             #endregion
 
-            #region STEP: Print final test results & retain/delete generated files as specified in input excel sheet.
+            #region END TEST: Print final test results & retain/delete generated files as specified in input excel sheet.
             // Based on the AOI unit test result, print a final result message in red or green.
             if (failureCondition > 0)
             {
@@ -313,83 +306,76 @@ namespace AOIUnitTest
             {
                 ConsoleMessage($"Retained '{acdPath}'.", "STATUS");
             }
-            #endregion
 
-            // Testing is complete. Go offline with the emulated controller.
-            await projectACD.GoOfflineAsync();
+            await projectACD.GoOfflineAsync(); // Testing is complete. Go offline with the emulated controller.
+            #endregion
         }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        public static string GetCDTTParameter(string parameterName, string cdttparametersField, AOIParameter[] parameters)
+        #region METHODS: L5X Manipulation
+        private static AOIParameter[] GetAOIParameters_FromL5X(string l5xPath)
         {
-            cdttparametersField = cdttparametersField.Trim().ToUpper();
-            //Console.WriteLine("inside GetCDTTParameter method 1: " + cdttparametersField);
-            string returnString = "";
-            for (int i = 0; i < parameters.Length; i++)
+            XDocument xDoc = XDocument.Load(l5xPath);
+            int parameterCount = xDoc.Descendants("Parameters").FirstOrDefault().Elements().Count();
+            AOIParameter[] returnDataPoints = new AOIParameter[parameterCount];
+            int paramIndex = 0;
+
+            foreach (var p in xDoc.Descendants("Parameter"))
             {
-                //Console.WriteLine("inside GetCDTTParameter method 2: " + parameters[i].Name);
-                if (parameters[i].Name == parameterName)
+                returnDataPoints[paramIndex].Name = p.Attribute("Name").Value;
+                returnDataPoints[paramIndex].DataType = p.Attribute("DataType").Value;
+                returnDataPoints[paramIndex].Usage = p.Attribute("Usage").Value;
+                returnDataPoints[paramIndex].Required = ToBoolean(p.Attribute("Required").Value);
+                returnDataPoints[paramIndex].Visible = ToBoolean(p.Attribute("Visible").Value);
+                paramIndex++;
+            }
+
+            return returnDataPoints;
+        }
+
+        public static string GetAOIParameter(string parameterName, string AOIParameterField, AOIParameter[] AOIParameter)
+        {
+            AOIParameterField = AOIParameterField.Trim().ToUpper();
+            string returnString = "";
+            for (int i = 0; i < AOIParameter.Length; i++)
+            {
+                if (AOIParameter[i].Name == parameterName)
                 {
-                    if (cdttparametersField == "NAME")
+                    if (AOIParameterField == "NAME")
                     {
-                        returnString = parameters[i].Name;
+                        returnString = AOIParameter[i].Name;
                     }
-                    if (cdttparametersField == "DATATYPE")
+                    if (AOIParameterField == "DATATYPE")
                     {
-                        returnString = parameters[i].DataType;
+                        returnString = AOIParameter[i].DataType;
                     }
-                    if (cdttparametersField == "USAGE")
+                    if (AOIParameterField == "USAGE")
                     {
-                        returnString = parameters[i].Usage;
+                        returnString = AOIParameter[i].Usage;
                     }
-                    if (cdttparametersField == "REQUIRED")
+                    if (AOIParameterField == "REQUIRED")
                     {
-                        returnString = parameters[i].Required.ToString();
+                        returnString = AOIParameter[i].Required.ToString();
                     }
-                    if (cdttparametersField == "VISIBLE")
+                    if (AOIParameterField == "VISIBLE")
                     {
-                        returnString = parameters[i].Visible.ToString();
+                        returnString = AOIParameter[i].Visible.ToString();
                     }
-                    if (cdttparametersField == "VALUE")
+                    if (AOIParameterField == "VALUE")
                     {
-                        returnString = parameters[i].Value;
+                        returnString = AOIParameter[i].Value;
                     }
-                    if (cdttparametersField == "BYTEPOSITION")
+                    if (AOIParameterField == "BYTEPOSITION")
                     {
-                        returnString = parameters[i].BytePosition.ToString();
+                        returnString = AOIParameter[i].BytePosition.ToString();
                     }
-                    if (cdttparametersField == "BOOLPOSITION")
+                    if (AOIParameterField == "BOOLPOSITION")
                     {
-                        returnString = parameters[i].BoolPosition.ToString();
+                        returnString = AOIParameter[i].BoolPosition.ToString();
                     }
                 }
             }
             return returnString;
         }
-
 
         public static Dictionary<string, string> GetExcelTestValues(string filePath, int columnNumber)
         {
@@ -408,9 +394,6 @@ namespace AOIUnitTest
 
             return returnDictionary;
         }
-
-        #region METHODS: manipulate L5X
-
 
         public static void ConvertAOItoRUNGxml(string xmlFilePath, string routineName, string programName, bool printOut)
         {
@@ -537,26 +520,6 @@ namespace AOIUnitTest
             return null; // Return null if attribute value is not found
         }
 
-
-        public Dictionary<string, string> CopyAttributes(string xmlFilePath, string elementName, bool printOut)
-        {
-            // Load the XML document
-            XDocument xdoc = XDocument.Load(xmlFilePath);
-
-            // Find the specified element. Assuming there is only one unique element with this name
-            XElement element = xdoc.Descendants(elementName).FirstOrDefault();
-
-            if ((element == null) && printOut)
-            {
-                ConsoleMessage($"The element '{elementName}' was not found in the XML file.", "ERROR");
-            }
-
-            // Create a dictionary to hold the attribute names and values
-            Dictionary<string, string> attributesDictionary = element.Attributes().ToDictionary(attr => attr.Name.LocalName, attr => attr.Value);
-
-            return attributesDictionary;
-        }
-
         public static void DeleteAttributeFromComplexElement(string xmlFilePath, string complexElementName, string attributeToDelete, bool printOut)
         {
             try
@@ -630,7 +593,6 @@ namespace AOIUnitTest
                 ConsoleMessage($"Attribute '{attributeToDelete}' not found in the root complex element '{complexElementName}'.", "ERROR");
             }
         }
-
 
         public static void ChangeComplexElementAttribute(string xmlFilePath, string complexElementName, string attributeName, string attributeValue, bool printOut)
         {
@@ -1013,28 +975,6 @@ namespace AOIUnitTest
             return return_populatedRowCount;
         }
 
-
-        private static void ReadXLS(string filePath)
-        {
-            FileInfo existingFile = new FileInfo(filePath);
-            using (ExcelPackage package = new ExcelPackage(existingFile))
-            {
-                //get the first worksheet in the workbook
-                ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
-                int colCount = worksheet.Dimension.End.Column;  //get Column Count
-                int rowCount = worksheet.Dimension.End.Row;     //get row count
-                Console.WriteLine("colCount: " + colCount);
-                Console.WriteLine("rowCount: " + rowCount);
-                for (int row = 1; row <= rowCount; row++)
-                {
-                    for (int col = 1; col <= colCount; col++)
-                    {
-                        Console.WriteLine(" Row:" + row + " column:" + col + " Value:" + worksheet.Cells[row, col].Value?.ToString()!.Trim()!);
-                    }
-                }
-            }
-        }
-
         private static void Print_AOIParameters(AOIParameter[] dataPointsArray, string aoiName, bool printPosition)
         {
             int arraySize = dataPointsArray.Length;
@@ -1067,55 +1007,7 @@ namespace AOIUnitTest
             }
         }
 
-        private static AOIParameter[] GetAOIParameters(string filePath)
-        {
-            int parameterCount;
-            AOIParameter[] returnDataPoints;
 
-            FileInfo existingFile = new FileInfo(filePath);
-            using (ExcelPackage package = new ExcelPackage(existingFile))
-            {
-                parameterCount = GetPopulatedRowCount(filePath, 2) - 6;
-                returnDataPoints = new AOIParameter[parameterCount];
-
-                ExcelWorksheet worksheet = package.Workbook.Worksheets[0];
-                for (int row = 0; row < parameterCount; row++)
-                {
-                    var paramName = worksheet.Cells[row + 20, 2].Value.ToString()!.Trim();
-                    var paramDataType = worksheet.Cells[row + 20, 3].Value.ToString()!.Trim();
-                    var paramScope = worksheet.Cells[row + 20, 4].Value.ToString()!.Trim();
-
-                    AOIParameter dataPoint = new AOIParameter();
-                    dataPoint.Name = paramName;
-                    dataPoint.DataType = paramDataType;
-                    dataPoint.Usage = paramScope;
-
-                    returnDataPoints[row] = dataPoint;
-                }
-            }
-            return returnDataPoints;
-        }
-
-
-        private static AOIParameter[] GetAOIParameters_FromL5X(string l5xPath)
-        {
-            XDocument xDoc = XDocument.Load(l5xPath);
-            int parameterCount = xDoc.Descendants("Parameters").FirstOrDefault().Elements().Count();
-            AOIParameter[] returnDataPoints = new AOIParameter[parameterCount];
-            int paramIndex = 0;
-
-            foreach (var p in xDoc.Descendants("Parameter"))
-            {
-                returnDataPoints[paramIndex].Name = p.Attribute("Name").Value;
-                returnDataPoints[paramIndex].DataType = p.Attribute("DataType").Value;
-                returnDataPoints[paramIndex].Usage = p.Attribute("Usage").Value;
-                returnDataPoints[paramIndex].Required = ToBoolean(p.Attribute("Required").Value);
-                returnDataPoints[paramIndex].Visible = ToBoolean(p.Attribute("Visible").Value);
-                paramIndex++;
-            }
-
-            return returnDataPoints;
-        }
         #endregion
 
         #region METHODS: formatting text file
@@ -1633,7 +1525,7 @@ namespace AOIUnitTest
         }
 
         /// <summary>
-        /// Asynchronously set either the online or offline value of a basic data type tag.
+        /// Asynchronously set either the online or offline value of a basic data type tag.<br/>
         /// (basic data types handled: boolean, single integer, integer, double integer, long integer, real, string)
         /// </summary>
         /// <param name="tagName">The name of the tag whose value will be set.</param>
@@ -1641,7 +1533,7 @@ namespace AOIUnitTest
         /// <param name="mode">This specifies whether the 'Online' or 'Offline' value of the tag is the one to set.</param>
         /// <param name="type">The data type of the tag whose value will be set.</param>
         /// <param name="tagPath">
-        /// The tag path specifying the tag's scope and location in the Studio 5000 Logix Designer project.
+        /// The tag path specifying the tag's scope and location in the Studio 5000 Logix Designer project.<br/>
         /// The tag path is based on the XML filetype (L5X) encapsulation of elements.
         /// </param>
         /// <param name="project">An instance of the LogixProject class.</param>
@@ -1802,24 +1694,6 @@ namespace AOIUnitTest
             }
 
             return sb.ToString();
-        }
-
-        /// <summary>
-        /// Custom conversion of a string to its boolean equivalent.
-        /// </summary>
-        /// <param name="val">String input to be converted to a boolean equivalent.</param>
-        /// <returns>Any uppercase/lowercase combination of "TRUE" or "YES" or "1" returns boolean true. All other inputs return boolean false.</returns>
-        public static bool ToBoolean(string val)
-        {
-            switch (val.Trim().ToUpper())
-            {
-                case "TRUE":
-                case "YES":
-                case "1":
-                    return true;
-                default:
-                    return false;
-            }
         }
 
         private static async Task SetSingleValue_UDTorAOI(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, AOIParameter[] input_TagDataArray, LogixProject project, bool printout = false)
@@ -2218,25 +2092,8 @@ namespace AOIUnitTest
             return "";
         }
         #endregion
-        public static uint ConvertStringToUint(string inputString)
-        {
-            double doubleValue;
-            uint result = 0;
 
-            if (double.TryParse(inputString, out doubleValue))
-            {
-                result = (uint)doubleValue;
-            }
-            else
-            {
-                ConsoleMessage("Conversion failed. The input string is not a valid double.", "ERROR");
-            }
-
-            return result;
-        }
-
-
-
+        #region METHODS: TEST & helper methods
         /// <summary>
         /// A test to compare the expected and actual values of a tag.
         /// </summary>
@@ -2280,5 +2137,41 @@ namespace AOIUnitTest
                 ConsoleMessage($"Folder already exists at '{folderPath}'.", "STATUS");
             }
         }
+
+        /// <summary>
+        /// Custom conversion of a string to its boolean equivalent.
+        /// </summary>
+        /// <param name="val">String input to be converted to a boolean equivalent.</param>
+        /// <returns>Any uppercase/lowercase combination of "TRUE" or "YES" or "1" returns boolean true. All other inputs return boolean false.</returns>
+        public static bool ToBoolean(string val)
+        {
+            switch (val.Trim().ToUpper())
+            {
+                case "TRUE":
+                case "YES":
+                case "1":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public static uint ConvertStringToUint(string inputString)
+        {
+            double doubleValue;
+            uint result = 0;
+
+            if (double.TryParse(inputString, out doubleValue))
+            {
+                result = (uint)doubleValue;
+            }
+            else
+            {
+                ConsoleMessage("Conversion failed. The input string is not a valid double.", "ERROR");
+            }
+
+            return result;
+        }
+        #endregion
     }
 }
