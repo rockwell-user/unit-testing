@@ -1,4 +1,4 @@
-// ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------
 //
 // FileName: Echo_Program.cs
 // FileType: Visual C# Source File
@@ -6,7 +6,7 @@
 // Created : 2024
 // Description : This script provides supporting methods to set up an emulated controller using the Factory Talk Logix Echo SDK.
 //
-// ---------------------------------------------------------------------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 using RockwellAutomation.FactoryTalkLogixEcho.Api.Client;
 using RockwellAutomation.FactoryTalkLogixEcho.Api.Interfaces;
@@ -27,7 +27,7 @@ namespace LogixEcho
         /// <param name="acdFilePath">The file path pointing to the ACD project used for testing.</param>
         /// <param name="chassisName">The name of the chassis to be created if it does not yet exist or to be checked for the specified controller.</param>
         /// <param name="controllerName">The name of the controller to be either created or whose communication path is to be returned.</param>
-        /// <returns>A string containing the communication path of the emulated controller that the ACD project file will go online with during testing.</returns>
+        /// <returns>A string containing the communication path of the emulated controller that the ACD file will go online with during testing.</returns>
         public static async Task<string> Main(string acdFilePath, string chassisName, string controllerName)
         {
             // Set up initial variables:
@@ -67,13 +67,14 @@ namespace LogixEcho
             }
 
             // Get emulated controller information.
-            ControllerData testControllerDate = await GetControllerInfo_Async(chassisName, controllerName, serviceClient);
+            ControllerData testControllerDate = await GetControllerData_Async(chassisName, controllerName, serviceClient);
 
             // Create the communication path needed for proper emmulated controller connnections.
             string commPath = @"EmulateEthernet\" + testControllerDate.IPConfigurationData.Address.ToString() ?? "";
 
             return commPath;
         }
+
         #region METHODS: FTlogix Echo SDK methods
         /// <summary>
         /// Asynchronously get the ChassisData chassis variable using the chassis's name.
@@ -100,7 +101,7 @@ namespace LogixEcho
         /// <param name="controllerName">The emulated controller name.</param>
         /// <param name="serviceClient">The Factory Talk Logix Echo interface.</param>
         /// <returns>The variable ControllerData for the chassis name specified.</returns>
-        private static async Task<ControllerData?> GetControllerInfo_Async(string chassisName, string controllerName, IServiceApiClientV2 serviceClient)
+        private static async Task<ControllerData?> GetControllerData_Async(string chassisName, string controllerName, IServiceApiClientV2 serviceClient)
         {
             // Get the list of chassis currently created and iterate through them until the desired chassis is selected. 
             var chassisList = (await serviceClient.ListChassis()).ToList();
@@ -128,7 +129,7 @@ namespace LogixEcho
         /// <returns>A Task that returns a boolean value <c>true</c> if the emulated controller already exists and a <c>false</c> if it does not.</returns>
         private static async Task<bool> CheckCurrentChassis_Async(string chassisName, IServiceApiClientV2 serviceClient)
         {
-            // Get the list of chassis currently created and iterate through them. If a chassis in the list has the same name as the input string, return true. 
+            // Get the list of chassis currently created and iterate through them. If a chassis in the list has the same name as the input string, return true.
             var chassisList = (await serviceClient.ListChassis()).ToList();
             for (int i = 0; i < chassisList.Count; i++)
             {
@@ -136,20 +137,6 @@ namespace LogixEcho
                     return true;
             }
             return false;
-        }
-
-        /// <summary>
-        /// Run the CheckCurrentChassisAsync method synchronously.<br/>
-        /// Check to see if a specific controller exists in a specific chassis.
-        /// </summary>
-        /// <param name="chassisName">The name of the emulated chassis to check the emulated controler in.</param>
-        /// <param name="serviceClient">The Factory Talk Logix Echo interface.</param>
-        /// <returns>A boolean value 'True' if the emulated controller already exists and a 'False' if it does not.</returns>
-        private static bool CheckCurrentChassis_Sync(string chassisName, IServiceApiClientV2 serviceClient)
-        {
-            var task = CheckCurrentChassis_Async(chassisName, serviceClient);
-            task.Wait();
-            return task.Result;
         }
 
         /// <summary>
@@ -161,16 +148,18 @@ namespace LogixEcho
         /// <returns>A Task that returns a boolean value <c>true</c> if the emulated controller already exists and a <c>false</c> if it does not.</returns>
         private static async Task<bool> CheckCurrentController_Async(string chassisName, string controllerName, IServiceApiClientV2 serviceClient)
         {
-            // Get the list of chassis 
+            // Get the list of chassis currently created and iterate through them.
             var chassisList = (await serviceClient.ListChassis()).ToList();
             for (int i = 0; i < chassisList.Count; i++)
             {
+                // If a chassis in the list has the same name as the input string, continue to checking controllers. 
                 if (chassisList[i].Name == chassisName)
                 {
-                    var chassisGuid = chassisList[i].ChassisGuid;
-                    var controllerList = (await serviceClient.ListControllers(chassisGuid)).ToList();
+                    // Get the list of controllers currently created and iterate through them.
+                    var controllerList = (await serviceClient.ListControllers(chassisList[i].ChassisGuid)).ToList();
                     for (int j = 0; j < controllerList.Count; j++)
                     {
+                        // If a controller in the list has the same name as the input string, return true. 
                         if (controllerList[j].ControllerName == controllerName)
                         {
                             return true;
@@ -179,21 +168,6 @@ namespace LogixEcho
                 }
             }
             return false;
-        }
-
-        /// <summary>
-        /// Run the CheckCurrentChassisAsync method synchronously.<br/>
-        /// Check to see if a specific controller exists in a specific chassis.
-        /// </summary>
-        /// <param name="chassisName">The name of the emulated chassis to check the emulated controler in.</param>
-        /// <param name="controllerName">The name of the emulated controller to check.</param>
-        /// <param name="serviceClient">The Factory Talk Logix Echo interface.</param>
-        /// <returns>A Task that returns a boolean value <c>true</c> if the emulated controller already exists and a <c>false</c> if it does not.</returns>
-        private static bool CheckCurrentController_Sync(string chassisName, string controllerName, IServiceApiClientV2 serviceClient)
-        {
-            var task = CheckCurrentController_Async(chassisName, controllerName, serviceClient);
-            task.Wait();
-            return task.Result;
         }
 
         /// <summary>
@@ -211,8 +185,7 @@ namespace LogixEcho
             // Get the list of controllers from the specified chassis.
             var controllerList = (await serviceClient.ListControllers(chassisToDelete.ChassisGuid)).ToList();
 
-            // Iterate through any existing controllers and delete them b/c a chassis can't be deleted 
-            // if it still has any controllers in it.
+            // Iterate through any existing controllers and delete them. A chassis can't be deleted if it still has controllers in it.
             for (int i = 0; i < controllerList.Count; i++)
             {
                 await serviceClient.DeleteController(controllerList[i].ControllerGuid);
