@@ -170,9 +170,9 @@ namespace AOIUnitTest
             //Console.WriteLine("current fullTagPath: " + aoiTagScope);
             ByteString udtoraoi_byteString = GetAOIbytestring_Sync(aoiTagScope, projectACD, OperationMode.Online);
 
-            AOIParameter[] testParams = GetAOIParameters_FromL5X(convertedAOIrung_L5Xfilepath); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
-            testParams = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, projectACD, OperationMode.Online), true);
-            Print_AOIParameters(testParams, aoiName, false);
+            AOIParameter[] aoiParameterArray = GetAOIParameters_FromL5X(convertedAOIrung_L5Xfilepath); // ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------[MODIFY FOR GITHUB DIRECTORY]
+            aoiParameterArray = GetAOIParameterValues(aoiParameterArray, GetAOIbytestring_Sync(aoiTagScope, projectACD, OperationMode.Online), true);
+            Print_AOIParameters(aoiParameterArray, aoiName, false);
 
             // Test variables
             string[] AT_FaultType_TagValue;
@@ -192,52 +192,47 @@ namespace AOIUnitTest
 
                 // Rotate through inputs
                 Dictionary<string, string> currentColumn = GetExcelTestValues(inputExcel_UnitTestSetup_filePath, columnNumber);
-                foreach (var kvp in currentColumn)
-                {
-                    if (GetAOIParameter(kvp.Key, "Usage", testParams) != "Output")
-                    {
-                        //SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project).GetAwaiter().GetResult();
-                        await SetSingleParamValue_CDTT(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, projectACD, true);
-                    }
+                AOIParameter[] newAOIParameters_newInputs = ChangeAOIInputParameters(currentColumn, aoiParameterArray);
 
-                    // Check if faulted
+                await SetAllInputParamValues_CDTT(aoiTagScope, OperationMode.Online, newAOIParameters_newInputs, projectACD, true);
+
+                // Check if faulted
+                AT_FaultType_TagValue = GetTagValue_Sync("AT_FaultType", DataType.DINT, "Controller/Tags/Tag", projectACD);
+                AT_FaultCode_TagValue = GetTagValue_Sync("AT_FaultCode", DataType.DINT, "Controller/Tags/Tag", projectACD);
+                faultedState = (AT_FaultType_TagValue[1] != "0") || (AT_FaultCode_TagValue[1] != "0");
+
+                if (faultedState)
+                {
+                    failureCondition++;
+
+                    // Do faulted stuff
+                    ConsoleMessage($"Controller faulted with error codes type '{AT_FaultType_TagValue[1]}' & code '{AT_FaultCode_TagValue[1]}'.", "ERROR");
+
+                    ConsoleMessage($"Attempting to clear fault. Setting '{kvp.Key}' to '0' & test if controller still faulted.", "ERROR");
+
+                    await SetSingleParamValue_CDTT("0", aoiTagScope, kvp.Key, OperationMode.Online, aoiParameterArray, projectACD);
+
+                    // Toggle reset to clear fault
+                    SetTagValue_Sync("AT_ClearFault", "true", OperationMode.Online, DataType.BOOL, "Controller/Tags/Tag", projectACD);
+                    SetTagValue_Sync("AT_ClearFault", "false", OperationMode.Online, DataType.BOOL, "Controller/Tags/Tag", projectACD);
+
                     AT_FaultType_TagValue = GetTagValue_Sync("AT_FaultType", DataType.DINT, "Controller/Tags/Tag", projectACD);
                     AT_FaultCode_TagValue = GetTagValue_Sync("AT_FaultCode", DataType.DINT, "Controller/Tags/Tag", projectACD);
                     faultedState = (AT_FaultType_TagValue[1] != "0") || (AT_FaultCode_TagValue[1] != "0");
 
                     if (faultedState)
                     {
-                        failureCondition++;
-
-                        // Do faulted stuff
-                        ConsoleMessage($"Controller faulted upon setting '{kvp.Key}' to '{kvp.Value}'. | Fault Type: '{AT_FaultType_TagValue[1]}' & Fault Code: '{AT_FaultCode_TagValue[1]}'.", "ERROR");
-
-                        ConsoleMessage($"Attempting to clear fault. Setting '{kvp.Key}' to '0' & test if controller still faulted.", "ERROR");
-
-                        await SetSingleParamValue_CDTT("0", aoiTagScope, kvp.Key, OperationMode.Online, testParams, projectACD);
-
-                        // Toggle reset to clear fault
-                        SetTagValue_Sync("AT_ClearFault", "true", OperationMode.Online, DataType.BOOL, "Controller/Tags/Tag", projectACD);
-                        SetTagValue_Sync("AT_ClearFault", "false", OperationMode.Online, DataType.BOOL, "Controller/Tags/Tag", projectACD);
-
-                        AT_FaultType_TagValue = GetTagValue_Sync("AT_FaultType", DataType.DINT, "Controller/Tags/Tag", projectACD);
-                        AT_FaultCode_TagValue = GetTagValue_Sync("AT_FaultCode", DataType.DINT, "Controller/Tags/Tag", projectACD);
-                        faultedState = (AT_FaultType_TagValue[1] != "0") || (AT_FaultCode_TagValue[1] != "0");
-
-                        if (faultedState)
-                        {
-                            ConsoleMessage("Controller still faulted. Ending Test.", "ERROR");
-                            await LogixEchoMethods.DeleteChassis_Async(echoChassisName);
-                            ConsoleMessage($"Deleted chassis '{echoChassisName}'.", "STATUS");
-                            breakUnitTestLoop = true;
-                            break;
-                        }
-                        else if (testNumber < testCases)
-                        {
-                            ConsoleMessage($"Fault cleared. Moving to next test case...", "SUCCESS");
-                            breakOutputParameterLoop = true;
-                            break;
-                        }
+                        ConsoleMessage("Controller still faulted. Ending Test.", "ERROR");
+                        await LogixEchoMethods.DeleteChassis_Async(echoChassisName);
+                        ConsoleMessage($"Deleted chassis '{echoChassisName}'.", "STATUS");
+                        breakUnitTestLoop = true;
+                        break;
+                    }
+                    else if (testNumber < testCases)
+                    {
+                        ConsoleMessage($"Fault cleared. Moving to next test case...", "SUCCESS");
+                        breakOutputParameterLoop = true;
+                        break;
                     }
                 }
 
@@ -251,10 +246,10 @@ namespace AOIUnitTest
                     if (breakOutputParameterLoop)
                         break;
 
-                    if (GetAOIParameter(kvp.Key, "Usage", testParams) != "Input")
+                    if (GetAOIParameter(kvp.Key, "Usage", aoiParameterArray) != "Input")
                     {
-                        AOIParameter[] newTestParameters = GetAOIParameterValues(testParams, GetAOIbytestring_Sync(aoiTagScope, projectACD, OperationMode.Online), true);
-                        string outputValue = GetAOIParameter(kvp.Key, "Value", newTestParameters);
+                        AOIParameter[] newAOIParameters_checkOutputs = GetAOIParameterValues(aoiParameterArray, GetAOIbytestring_Sync(aoiTagScope, projectACD, OperationMode.Online), true);
+                        string outputValue = GetAOIParameter(kvp.Key, "Value", newAOIParameters_checkOutputs);
 
                         failureCondition += TEST_CompareForExpectedValue(kvp.Key, kvp.Value, outputValue, true);
                     }
@@ -373,6 +368,24 @@ namespace AOIUnitTest
                 }
             }
             return returnString;
+        }
+
+        public static AOIParameter[] ChangeAOIInputParameters(Dictionary<string, string> newValuesDict, AOIParameter[] AOIParameter)
+        {
+            for (int i = 0; i < AOIParameter.Length; i++)
+            {
+                if (AOIParameter[i].Usage != "Output")
+                {
+                    foreach (var kvp in newValuesDict)
+                    {
+                        if (kvp.Key == AOIParameter[i].Name)
+                        {
+                            AOIParameter[i].Value = kvp.Value;
+                        }
+                    }
+                }
+            }
+            return AOIParameter;
         }
 
         public static Dictionary<string, string> GetExcelTestValues(string filePath, int columnNumber)
@@ -1639,7 +1652,7 @@ namespace AOIUnitTest
         /// <summary>
         /// Asynchronously get the online and offline data in ByteString form for the complex tag UDT_AllAtomicDataTypes.
         /// </summary>
-        /// <param name="fullTagPath">
+        /// <param name="aoiTagScope">
         /// The tag path specifying the tag's scope and location in the Studio 5000 Logix Designer project.<br/>
         /// The tag path is based on the XML filetype (L5X) encapsulation of elements.</param>
         /// <param name="project">An instance of the LogixProject class.</param>
@@ -1648,14 +1661,14 @@ namespace AOIUnitTest
         /// returnByteStringArray[0] = online tag values<br/>
         /// returnByteStringArray[1] = offline tag values
         /// </returns>
-        private static async Task<ByteString> GetAOIbytestring_Async(string fullTagPath, LogixProject project, OperationMode online_or_offline)
+        private static async Task<ByteString> GetAOIbytestring_Async(string aoiTagScope, LogixProject project, OperationMode online_or_offline)
         {
             ByteString returnByteStringArray = ByteString.Empty;
 
             if (online_or_offline == OperationMode.Online)
-                returnByteStringArray = await project.GetTagValueAsync(fullTagPath, OperationMode.Online, DataType.BYTE_ARRAY);
+                returnByteStringArray = await project.GetTagValueAsync(aoiTagScope, OperationMode.Online, DataType.BYTE_ARRAY);
             else if (online_or_offline == OperationMode.Offline)
-                returnByteStringArray = await project.GetTagValueAsync(fullTagPath, OperationMode.Offline, DataType.BYTE_ARRAY);
+                returnByteStringArray = await project.GetTagValueAsync(aoiTagScope, OperationMode.Offline, DataType.BYTE_ARRAY);
             else
                 ConsoleMessage($"The input '{online_or_offline}' is not a valid selection. Input either 'OperationMode.Online' or 'OperationMode.Offline'.", "ERROR");
 
@@ -1666,7 +1679,7 @@ namespace AOIUnitTest
         /// Run the GetUDT_AllAtomicDataTypesAsync Method synchronously.<br/>
         /// Get the online and offline data in ByteString form for the complex tag UDT_AllAtomicDataTypes.
         /// </summary>
-        /// <param name="tagPath">
+        /// <param name="aoiTagScope">
         /// The tag path specifying the tag's scope and location in the Studio 5000 Logix Designer project.<br/>
         /// The tag path is based on the XML filetype (L5X) encapsulation of elements.</param>
         /// <param name="project">An instance of the LogixProject class.</param>
@@ -1675,9 +1688,9 @@ namespace AOIUnitTest
         /// returnByteStringArray[0] = online tag values<br/>
         /// returnByteStringArray[1] = offline tag values
         /// </returns>
-        private static ByteString GetAOIbytestring_Sync(string tagPath, LogixProject project, OperationMode online_or_offline)
+        private static ByteString GetAOIbytestring_Sync(string aoiTagScope, LogixProject project, OperationMode online_or_offline)
         {
-            var task = GetAOIbytestring_Async(tagPath, project, online_or_offline);
+            var task = GetAOIbytestring_Async(aoiTagScope, project, online_or_offline);
             task.Wait();
             return task.Result;
         }
@@ -1694,9 +1707,9 @@ namespace AOIUnitTest
             return sb.ToString();
         }
 
-        private static async Task SetSingleParamValue_CDTT(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, AOIParameter[] input_TagDataArray, LogixProject project, bool printout = false)
+        private static async Task SetSingleParamValue_CDTT(string newParameterValue, string aoiTagScope, string parameterName, OperationMode mode, AOIParameter[] input_TagDataArray, LogixProject project, bool printout = false)
         {
-            ByteString input_ByteString = GetAOIbytestring_Sync(aoiTagPath, project, mode);
+            ByteString input_ByteString = GetAOIbytestring_Sync(aoiTagScope, project, mode);
             byte[] new_byteArray = input_ByteString.ToByteArray();
             int inputArraySize = input_TagDataArray.Length;
             string oldParameterValue = "";
@@ -1767,16 +1780,16 @@ namespace AOIUnitTest
                 }
             }
 
-            await project.SetTagValueAsync(aoiTagPath, mode, new_byteArray, DataType.BYTE_ARRAY);
+            await project.SetTagValueAsync(aoiTagScope, mode, new_byteArray, DataType.BYTE_ARRAY);
             string setParamIntro = $"Change {parameterName} value:".PadRight(40, ' ');
 
             if (printout)
                 ConsoleMessage($"{setParamIntro} {oldParameterValue,20} -> {newParameterValue,-20}", "STATUS");
         }
 
-        private static async Task SetMultipleParamValues_CDTT(string aoiTagPath, OperationMode mode, AOIParameter[] newAOIParameters, LogixProject project, bool printout = false)
+        private static async Task SetAllInputParamValues_CDTT(string aoiTagScope, OperationMode mode, AOIParameter[] newAOIParameters, LogixProject project, bool printout = false)
         {
-            ByteString inputByteString = GetAOIbytestring_Sync(aoiTagPath, project, mode);
+            ByteString inputByteString = GetAOIbytestring_Sync(aoiTagScope, project, mode);
             AOIParameter[] oldAOIParameters = GetAOIParameterValues(newAOIParameters, inputByteString);
             byte[] newByteArray = inputByteString.ToByteArray();
 
@@ -1848,7 +1861,7 @@ namespace AOIUnitTest
                     ConsoleMessage($"{setParamIntro} {oldParameterValue,20} -> {newParameterValue,-20}", "STATUS");
             }
 
-            await project.SetTagValueAsync(aoiTagPath, mode, newByteArray, DataType.BYTE_ARRAY);
+            await project.SetTagValueAsync(aoiTagScope, mode, newByteArray, DataType.BYTE_ARRAY);
         }
 
         private static DataType GetDataType(string dataType)
