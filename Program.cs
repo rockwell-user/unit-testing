@@ -197,7 +197,7 @@ namespace AOIUnitTest
                     if (GetAOIParameter(kvp.Key, "Usage", testParams) != "Output")
                     {
                         //SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, project).GetAwaiter().GetResult();
-                        await SetSingleValue_UDTorAOI(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, projectACD, true);
+                        await SetSingleParamValue_CDTT(kvp.Value, aoiTagScope, kvp.Key, OperationMode.Online, testParams, projectACD, true);
                     }
 
                     // Check if faulted
@@ -214,7 +214,7 @@ namespace AOIUnitTest
 
                         ConsoleMessage($"Attempting to clear fault. Setting '{kvp.Key}' to '0' & test if controller still faulted.", "ERROR");
 
-                        await SetSingleValue_UDTorAOI("0", aoiTagScope, kvp.Key, OperationMode.Online, testParams, projectACD);
+                        await SetSingleParamValue_CDTT("0", aoiTagScope, kvp.Key, OperationMode.Online, testParams, projectACD);
 
                         // Toggle reset to clear fault
                         SetTagValue_Sync("AT_ClearFault", "true", OperationMode.Online, DataType.BOOL, "Controller/Tags/Tag", projectACD);
@@ -1694,7 +1694,7 @@ namespace AOIUnitTest
             return sb.ToString();
         }
 
-        private static async Task SetSingleValue_UDTorAOI(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, AOIParameter[] input_TagDataArray, LogixProject project, bool printout = false)
+        private static async Task SetSingleParamValue_CDTT(string newParameterValue, string aoiTagPath, string parameterName, OperationMode mode, AOIParameter[] input_TagDataArray, LogixProject project, bool printout = false)
         {
             ByteString input_ByteString = GetAOIbytestring_Sync(aoiTagPath, project, mode);
             byte[] new_byteArray = input_ByteString.ToByteArray();
@@ -1774,6 +1774,83 @@ namespace AOIUnitTest
                 ConsoleMessage($"{setParamIntro} {oldParameterValue,20} -> {newParameterValue,-20}", "STATUS");
         }
 
+        private static async Task SetMultipleParamValues_CDTT(string aoiTagPath, OperationMode mode, AOIParameter[] newAOIParameters, LogixProject project, bool printout = false)
+        {
+            ByteString inputByteString = GetAOIbytestring_Sync(aoiTagPath, project, mode);
+            AOIParameter[] oldAOIParameters = GetAOIParameterValues(newAOIParameters, inputByteString);
+            byte[] newByteArray = inputByteString.ToByteArray();
+
+            for (int j = 0; j < newAOIParameters.Length; j++)
+            {
+                DataType dataType = GetDataType(newAOIParameters[j].DataType);
+                int bytePosition = newAOIParameters[j].BytePosition;
+                string oldParameterValue = oldAOIParameters[j].Value;
+                string newParameterValue = newAOIParameters[j].Value;
+
+                if (dataType == DataType.BOOL)
+                {
+                    byte[] bools_byteArray = new byte[4];
+                    Array.ConstrainedCopy(newByteArray, bytePosition, bools_byteArray, 0, 4);
+                    var bitArray = new BitArray(bools_byteArray);
+
+                    int boolPosition = 31 - newAOIParameters[j].BoolPosition;
+                    bool bool_newTagValue = ToBoolean(newParameterValue);
+                    bitArray[boolPosition] = bool_newTagValue;
+                    bitArray.CopyTo(bools_byteArray, 0);
+
+
+                    for (int i = 0; i < 4; ++i)
+                        newByteArray[i + bytePosition] = bools_byteArray[i];
+                }
+
+                else if (dataType == DataType.SINT)
+                {
+                    string sint_string = Convert.ToString(long.Parse(newParameterValue), 2);
+                    sint_string = sint_string.Substring(sint_string.Length - 8);
+                    newByteArray[bytePosition] = Convert.ToByte(sint_string, 2);
+                }
+
+                else if (dataType == DataType.INT)
+                {
+                    byte[] int_byteArray = BitConverter.GetBytes(int.Parse(newParameterValue));
+                    for (int i = 0; i < 2; ++i)
+                        newByteArray[i + bytePosition] = int_byteArray[i];
+                }
+
+                else if (dataType == DataType.DINT)
+                {
+                    byte[] dint_byteArray = BitConverter.GetBytes(long.Parse(newParameterValue));
+                    for (int i = 0; i < 4; ++i)
+                        newByteArray[i + bytePosition] = dint_byteArray[i];
+                }
+
+                else if (dataType == DataType.LINT)
+                {
+                    byte[] lint_byteArray = BitConverter.GetBytes(long.Parse(newParameterValue));
+                    for (int i = 0; i < 8; ++i)
+                        newByteArray[i + bytePosition] = lint_byteArray[i];
+                }
+
+                else if (dataType == DataType.REAL)
+                {
+                    byte[] real_byteArray = BitConverter.GetBytes(float.Parse(newParameterValue));
+                    for (int i = 0; i < 4; ++i)
+                        newByteArray[i + bytePosition] = real_byteArray[i];
+                }
+                else
+                {
+                    ConsoleMessage($"Data type '{dataType}' not supported.", "ERROR");
+                }
+
+                string setParamIntro = $"Change {newAOIParameters[j].Name} value:".PadRight(40, ' ');
+
+                if (printout)
+                    ConsoleMessage($"{setParamIntro} {oldParameterValue,20} -> {newParameterValue,-20}", "STATUS");
+            }
+
+            await project.SetTagValueAsync(aoiTagPath, mode, newByteArray, DataType.BYTE_ARRAY);
+        }
+
         private static DataType GetDataType(string dataType)
         {
             DataType type;
@@ -1804,7 +1881,7 @@ namespace AOIUnitTest
             return type;
         }
 
-        private static AOIParameter[] GetAOIParameterValues(AOIParameter[] input_TagDataArray, ByteString input_AOIorUDT_ByteString, bool printout)
+        private static AOIParameter[] GetAOIParameterValues(AOIParameter[] input_TagDataArray, ByteString input_AOIorUDT_ByteString, bool printout = false)
         {
             // initialize values needed for this method
             AOIParameter[] output_TagDataArray = input_TagDataArray;
